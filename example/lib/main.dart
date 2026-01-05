@@ -76,6 +76,13 @@ class ScrollTypeSelector extends StatelessWidget {
             SmoothScrollType.custom,
             Colors.teal,
           ),
+          _buildScrollTypeCard(
+            context,
+            'Native HTML Web Scroll',
+            'Standard browser scrolling behavior',
+            SmoothScrollType.native,
+            Colors.indigo,
+          ),
         ],
       ),
     );
@@ -191,6 +198,8 @@ class _ScrollDemoPageState extends State<ScrollDemoPage> {
         return SmoothScrollConfig.easeInOut(scrollSpeed: 1.2, damping: 0.1);
       case SmoothScrollType.custom:
         return SmoothScrollConfig.custom(scrollSpeed: 1.5, damping: 0.06);
+      case SmoothScrollType.native:
+        return SmoothScrollConfig.native(scrollSpeed: 1.0, momentumFactor: 0.6);
     }
   }
 

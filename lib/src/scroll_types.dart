@@ -23,5 +23,9 @@ enum SmoothScrollType {
   /// Custom scrolling with user-defined damping and speed.
   /// Allows fine-tuning of scroll behavior.
   custom,
+
+  /// Native HTML web scrolling behavior.
+  /// Mimics standard browser scrolling with natural momentum and deceleration.
+  native,
 }
 

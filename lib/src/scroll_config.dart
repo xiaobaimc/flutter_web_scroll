@@ -168,6 +168,22 @@ class SmoothScrollConfig {
     );
   }
 
+  /// Creates a native HTML web scroll configuration.
+  /// Mimics standard browser scrolling behavior with natural momentum.
+  factory SmoothScrollConfig.native({
+    double scrollSpeed = 1.0,
+    bool enableMomentum = true,
+    double momentumFactor = 0.6,
+  }) {
+    return SmoothScrollConfig(
+      scrollType: SmoothScrollType.native,
+      scrollSpeed: scrollSpeed,
+      damping: 0.15, // Medium damping for natural feel
+      enableMomentum: enableMomentum,
+      momentumFactor: momentumFactor,
+    );
+  }
+
   /// Gets the effective damping value based on scroll type.
   double get effectiveDamping {
     switch (scrollType) {
@@ -182,6 +198,8 @@ class SmoothScrollConfig {
       case SmoothScrollType.easeInOut:
         return damping;
       case SmoothScrollType.custom:
+        return damping;
+      case SmoothScrollType.native:
         return damping;
     }
   }

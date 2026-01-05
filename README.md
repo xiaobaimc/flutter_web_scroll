@@ -11,6 +11,7 @@ A high-performance, professional smooth scrolling package for Flutter web applic
 - **Ease-out**: Fast start, gradual deceleration
 - **Ease-in-out**: Smooth acceleration and deceleration
 - **Custom**: Fine-tune your own scroll behavior
+- **Native**: Standard HTML web browser scrolling behavior
 
 🎯 **Key Features**
 - Smooth, native-like scrolling experience
@@ -168,6 +169,22 @@ SmoothScrollWeb(
     damping: 0.06,         // Your custom damping
     enableMomentum: true,
     momentumFactor: 0.7,
+  ),
+  child: ListView(...),
+)
+```
+
+#### Native HTML Web Scroll
+
+Mimics standard browser scrolling behavior:
+
+```dart
+SmoothScrollWeb(
+  controller: _scrollController,
+  config: SmoothScrollConfig.native(
+    scrollSpeed: 1.0,      // Standard browser speed
+    enableMomentum: true,
+    momentumFactor: 0.6,   // Natural momentum
   ),
   child: ListView(...),
 )

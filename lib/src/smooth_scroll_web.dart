@@ -126,6 +126,9 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
       case SmoothScrollType.custom:
         _updateCustom(distance);
         break;
+      case SmoothScrollType.native:
+        _updateNative(distance);
+        break;
     }
 
     // Clamp to scroll bounds (unless elastic overscroll is enabled)
@@ -191,6 +194,26 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
     _currentScroll += distance * widget.config.damping;
   }
 
+  void _updateNative(double distance) {
+    // Native browser-style scrolling with natural deceleration
+    // Uses cubic ease-out for smooth, responsive feel similar to browser scrolling
+    final double absDistance = distance.abs();
+    if (absDistance < 0.1) {
+      _currentScroll = _targetScroll;
+      return;
+    }
+
+    // Cubic ease-out curve: 1 - (1-t)^3
+    // This provides the natural deceleration feel of native browser scrolling
+    final double t = math.min(absDistance / 50.0, 1.0);
+    final double easeFactor = 1.0 - math.pow(1.0 - t, 3);
+
+    // Apply damping with ease factor for natural feel
+    final double step =
+        distance * widget.config.damping * (0.5 + easeFactor * 0.5);
+    _currentScroll += step;
+  }
+
   void _onScroll(PointerScrollEvent event) {
     if (!mounted || !widget.controller.hasClients) return;
 
@@ -207,7 +230,8 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
     // Track velocity for momentum
     final DateTime now = DateTime.now();
     if (_lastScrollTime != null) {
-      final double dt = (now.difference(_lastScrollTime!).inMilliseconds) /
+      final double dt =
+          (now.difference(_lastScrollTime!).inMilliseconds) /
           1000.0; // Convert to seconds
       if (dt > 0 && dt < 0.1) {
         // Calculate velocity (pixels per second)
@@ -267,8 +291,8 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
     // If we have tracked velocity from scroll events, use that
     if (_lastScrollTime != null) {
       final DateTime now = DateTime.now();
-      final double dt = (now.difference(_lastScrollTime!).inMilliseconds) /
-          1000.0;
+      final double dt =
+          (now.difference(_lastScrollTime!).inMilliseconds) / 1000.0;
       if (dt < 0.2 && _lastScrollDelta.abs() > 0) {
         // Use recent scroll velocity
         velocity = -_lastScrollDelta * 1000.0 / dt;
@@ -309,4 +333,3 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
     );
   }
 }
-
