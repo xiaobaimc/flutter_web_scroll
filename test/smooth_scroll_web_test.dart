@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:smooth_scroll_web/smooth_scroll_web.dart';
+import 'package:flutter_web_scroll/flutter_web_scroll.dart';
 
 void main() {
   group('SmoothScrollConfig', () {

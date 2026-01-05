@@ -4,11 +4,11 @@ A high-performance, professional smooth scrolling package for Flutter web applic
 
 ## Preview
 
-### Without smooth_scroll_web
-![Without smooth scroll](https://github.com/zenithsyntax/smooth_scroll_web/raw/main/assets/without_smooth_scroll_web.gif)
+### Without flutter_web_scroll
+![Without smooth scroll](https://github.com/zenithsyntax/flutter_web_scroll/raw/main/assets/without_smooth_scroll_web.gif)
 
-### With smooth_scroll_web
-![With smooth scroll](https://github.com/zenithsyntax/smooth_scroll_web/raw/main/assets/with_smooth_scroll_web.gif)
+### With flutter_web_scroll
+![With smooth scroll](https://github.com/zenithsyntax/flutter_web_scroll/raw/main/assets/with_smooth_scroll_web.gif)
 
 ## Features
 
@@ -34,7 +34,7 @@ Add this to your package's `pubspec.yaml` file:
 
 ```yaml
 dependencies:
-  smooth_scroll_web: ^1.0.0
+  flutter_web_scroll: ^1.0.0
 ```
 
 Then run:
@@ -46,7 +46,7 @@ flutter pub get
 ## Quick Start
 
 ```dart
-import 'package:smooth_scroll_web/smooth_scroll_web.dart';
+import 'package:flutter_web_scroll/flutter_web_scroll.dart';
 
 final _scrollController = ScrollController();
 

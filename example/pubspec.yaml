@@ -1,5 +1,5 @@
-name: smooth_scroll_web_example
-description: Example app demonstrating smooth_scroll_web package
+name: flutter_web_scroll_example
+description: Example app demonstrating flutter_web_scroll package
 publish_to: 'none'
 version: 1.0.0
 
@@ -10,7 +10,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  smooth_scroll_web:
+  flutter_web_scroll:
     path: ../
 
 dev_dependencies:
