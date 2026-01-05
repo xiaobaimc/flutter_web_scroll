@@ -56,7 +56,6 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
   bool _isScrolling = false;
   DateTime? _lastScrollTime;
   double _lastScrollDelta = 0.0;
-  bool _isSingleScroll = false;
 
   @override
   void initState() {
@@ -97,24 +96,8 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
 
     final double distance = _targetScroll - _currentScroll;
 
-    // Stop if close enough - use rounded values to prevent oscillation
-    final double roundedCurrent = _currentScroll.roundToDouble();
-    final double roundedTarget = _targetScroll.roundToDouble();
-    final double roundedDistance = roundedTarget - roundedCurrent;
-
-    if (roundedDistance.abs() < widget.config.stopThreshold ||
-        distance.abs() < widget.config.stopThreshold) {
-      // Sync both to the same rounded value to prevent shake
-      final double finalPosition = roundedTarget;
-      _currentScroll = finalPosition;
-      _targetScroll = finalPosition;
-      widget.controller.jumpTo(finalPosition);
-      _ticker.stop();
-      _isScrolling = false;
-      _velocity = 0.0;
-      _isSingleScroll = false;
-      return;
-    }
+    // Calculate velocity magnitude for smooth stopping
+    final double previousScroll = _currentScroll;
 
     // Apply scroll type-specific interpolation
     switch (widget.config.scrollType) {
@@ -151,25 +134,31 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
       if (_currentScroll > maxExtent) _currentScroll = maxExtent;
     }
 
-    // Recalculate distance after interpolation and clamping
+    // Calculate current velocity (pixels per frame, ~16.67ms at 60fps)
+    final double currentVelocity = (_currentScroll - previousScroll).abs();
     final double newDistance = _targetScroll - _currentScroll;
     final double roundedScroll = _currentScroll.roundToDouble();
     final double roundedTargetAfter = _targetScroll.roundToDouble();
     final double currentOffset = widget.controller.offset;
 
-    // If very close to target (within 1 pixel), snap directly to prevent shake
-    // For single scrolls with hard end, use larger threshold for definitive stop
-    final double snapThreshold =
-        (_isSingleScroll && widget.config.singleScrollHardEnd) ? 3.0 : 1.0;
-    if (newDistance.abs() < snapThreshold) {
-      final double snapPosition = roundedTargetAfter;
-      _currentScroll = snapPosition;
-      _targetScroll = snapPosition;
-      widget.controller.jumpTo(snapPosition);
+    // Smooth stop: only stop when velocity is essentially zero AND we're very close
+    // Use more lenient thresholds to prevent premature stops during deceleration
+    final double velocityThreshold =
+        0.0001; // Extremely low velocity threshold
+    final double distanceThreshold = 0.0000001; // Very small distance threshold
+
+    // Check if we should stop: velocity is essentially zero AND distance is tiny
+    // This ensures we only stop when truly at rest, not during smooth deceleration
+    if (currentVelocity < velocityThreshold &&
+        newDistance.abs() < distanceThreshold) {
+      // Smoothly settle to final position
+      final double finalPosition = roundedTargetAfter;
+      _currentScroll = finalPosition;
+      _targetScroll = finalPosition;
+      widget.controller.jumpTo(finalPosition);
       _ticker.stop();
       _isScrolling = false;
       _velocity = 0.0;
-      _isSingleScroll = false;
       return;
     }
 
@@ -181,13 +170,29 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
   }
 
   void _updateLenis(double distance) {
-    // Exponential decay (Lenis-style)
-    _currentScroll += distance * widget.config.damping;
+    // Exponential decay (Lenis-style) with smooth, continuous deceleration
+    final double absDistance = distance.abs();
+
+    // Only apply gentle deceleration when very close to target
+    // This ensures smooth, continuous motion without micro-stops
+    final double decelerationFactor = absDistance < 5.0
+        ? math.max(0.7, absDistance / 5.0)
+        : 1.0;
+
+    _currentScroll += distance * widget.config.damping * decelerationFactor;
   }
 
   void _updateLinear(double distance) {
-    // Linear interpolation with constant speed
-    final double step = distance * widget.config.effectiveDamping;
+    // Linear interpolation with smooth, continuous motion
+    final double absDistance = distance.abs();
+
+    // Only apply gentle deceleration when very close to target
+    final double decelerationFactor = absDistance < 3.0
+        ? math.max(0.8, absDistance / 3.0)
+        : 1.0;
+
+    final double step =
+        distance * widget.config.effectiveDamping * decelerationFactor;
     if (step.abs() > distance.abs()) {
       _currentScroll = _targetScroll;
     } else {
@@ -207,54 +212,55 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
   }
 
   void _updateEaseOut(double distance) {
-    // Ease-out: fast start, slow end
-    final double t = distance.abs() / 100.0; // Normalize
-    final double easeFactor = 1.0 - math.pow(1.0 - math.min(t, 1.0), 3);
-    _currentScroll += distance * widget.config.damping * easeFactor;
+    // Ease-out: fast start, slow end with smooth continuous deceleration
+    final double absDistance = distance.abs();
+    final double t = math.min(absDistance / 100.0, 1.0); // Normalize
+
+    // Enhanced ease-out curve for smoother deceleration
+    final double easeFactor = 1.0 - math.pow(1.0 - t, 3);
+
+    // Only apply gentle deceleration when very close to target
+    final double smoothFactor = absDistance < 5.0
+        ? math.max(0.7, absDistance / 5.0)
+        : 1.0;
+
+    _currentScroll +=
+        distance * widget.config.damping * easeFactor * smoothFactor;
   }
 
   void _updateCustom(double distance) {
-    // Custom damping
-    _currentScroll += distance * widget.config.damping;
+    // Custom damping with smooth, continuous motion
+    final double absDistance = distance.abs();
+
+    // Only apply gentle deceleration when very close to target
+    final double decelerationFactor = absDistance < 5.0
+        ? math.max(0.7, absDistance / 5.0)
+        : 1.0;
+
+    _currentScroll += distance * widget.config.damping * decelerationFactor;
   }
 
   void _updateNative(double distance) {
-    // Native browser-style scrolling with natural deceleration
-    // For single scrolls, provides definitive stopping (hard/soft end)
+    // Native browser-style scrolling with natural smooth deceleration
     final double absDistance = distance.abs();
-    if (absDistance < 0.1) {
-      _currentScroll = _targetScroll;
-      _isSingleScroll = false;
-      return;
-    }
 
-    // If it's a single scroll with hard end, use faster damping for definitive stop
-    if (_isSingleScroll && widget.config.singleScrollHardEnd) {
-      // Hard end: faster damping for quick, definitive stop
-      // Use higher damping to stop more quickly
-      final double hardDamping = widget.config.damping * 2.5;
-      final double step = distance * hardDamping;
+    // Smooth ease-out curve for natural deceleration
+    final double t = math.min(absDistance / 50.0, 1.0);
+    final double easeFactor = 1.0 - math.pow(1.0 - t, 3);
 
-      // If very close to target, snap directly for hard end
-      if (absDistance < 5.0) {
-        _currentScroll = _targetScroll;
-        _isSingleScroll = false;
-        return;
-      }
+    // Only apply gentle deceleration when very close to target
+    // This ensures continuous smooth motion without micro-stops
+    final double smoothFactor = absDistance < 5.0
+        ? math.max(0.7, absDistance / 5.0)
+        : 1.0;
 
-      _currentScroll += step;
-    } else {
-      // Soft end or continuous scroll: smooth deceleration
-      // Cubic ease-out curve: 1 - (1-t)^3
-      // This provides the natural deceleration feel of native browser scrolling
-      final double t = math.min(absDistance / 50.0, 1.0);
-      final double easeFactor = 1.0 - math.pow(1.0 - t, 3);
-
-      // Apply damping with ease factor for natural feel
-      final double step =
-          distance * widget.config.damping * (0.5 + easeFactor * 0.5);
-      _currentScroll += step;
-    }
+    // Apply damping with ease factor and smooth factor for natural feel
+    final double step =
+        distance *
+        widget.config.damping *
+        (0.5 + easeFactor * 0.5) *
+        smoothFactor;
+    _currentScroll += step;
   }
 
   void _onScroll(PointerScrollEvent event) {
@@ -273,28 +279,17 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
     // Track velocity for momentum
     final DateTime now = DateTime.now();
 
-    // Detect single scroll vs continuous scroll
+    // Track velocity for momentum
     if (_lastScrollTime != null) {
       final int timeSinceLastScroll = now
           .difference(_lastScrollTime!)
           .inMilliseconds;
-
-      // If time since last scroll exceeds threshold, it's a new single scroll
-      if (timeSinceLastScroll > widget.config.singleScrollThreshold) {
-        _isSingleScroll = true;
-      } else {
-        // Continuous scrolling - not a single scroll
-        _isSingleScroll = false;
-      }
 
       final double dt = timeSinceLastScroll / 1000.0; // Convert to seconds
       if (dt > 0 && dt < 0.1) {
         // Calculate velocity (pixels per second)
         _velocity = event.scrollDelta.dy / dt;
       }
-    } else {
-      // First scroll - treat as single scroll
-      _isSingleScroll = true;
     }
 
     _lastScrollTime = now;
