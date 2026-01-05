@@ -1,11 +1,13 @@
 name: smooth_scroll_web
 description: A high-performance smooth scrolling package for Flutter web with multiple scroll types including Lenis-style scrolling, linear, elastic, and custom behaviors.
 version: 1.0.0
-homepage: https://github.com/yourusername/smooth_scroll_web
+homepage: https://github.com/zenithsyntax/smooth_scroll_web
+repository: https://github.com/zenithsyntax/smooth_scroll_web
+issue_tracker: https://github.com/zenithsyntax/smooth_scroll_web/issues
 
 environment:
-  sdk: ^3.9.2
-  flutter: ">=1.17.0"
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: ">=3.0.0"
 
 dependencies:
   flutter:

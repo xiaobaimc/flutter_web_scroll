@@ -1,0 +1,32 @@
+# Build artifacts
+build/
+**/build/
+*.iml
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Flutter/Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+pubspec.lock
+
+# Coverage
+coverage/
+*.lcov
+
+# Test files
+test_driver/
+
