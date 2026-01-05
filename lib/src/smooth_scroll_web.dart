@@ -96,10 +96,18 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
 
     final double distance = _targetScroll - _currentScroll;
 
-    // Stop if close enough
-    if (distance.abs() < widget.config.stopThreshold) {
-      _currentScroll = _targetScroll;
-      widget.controller.jumpTo(_currentScroll);
+    // Stop if close enough - use rounded values to prevent oscillation
+    final double roundedCurrent = _currentScroll.roundToDouble();
+    final double roundedTarget = _targetScroll.roundToDouble();
+    final double roundedDistance = roundedTarget - roundedCurrent;
+
+    if (roundedDistance.abs() < widget.config.stopThreshold ||
+        distance.abs() < widget.config.stopThreshold) {
+      // Sync both to the same rounded value to prevent shake
+      final double finalPosition = roundedTarget;
+      _currentScroll = finalPosition;
+      _targetScroll = finalPosition;
+      widget.controller.jumpTo(finalPosition);
       _ticker.stop();
       _isScrolling = false;
       _velocity = 0.0;
@@ -119,9 +127,6 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
         break;
       case SmoothScrollType.easeOut:
         _updateEaseOut(distance);
-        break;
-      case SmoothScrollType.easeInOut:
-        _updateEaseInOut(distance);
         break;
       case SmoothScrollType.custom:
         _updateCustom(distance);
@@ -144,7 +149,29 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
       if (_currentScroll > maxExtent) _currentScroll = maxExtent;
     }
 
-    widget.controller.jumpTo(_currentScroll);
+    // Recalculate distance after interpolation and clamping
+    final double newDistance = _targetScroll - _currentScroll;
+    final double roundedScroll = _currentScroll.roundToDouble();
+    final double roundedTargetAfter = _targetScroll.roundToDouble();
+    final double currentOffset = widget.controller.offset;
+
+    // If very close to target (within 1 pixel), snap directly to prevent shake
+    if (newDistance.abs() < 1.0) {
+      final double snapPosition = roundedTargetAfter;
+      _currentScroll = snapPosition;
+      _targetScroll = snapPosition;
+      widget.controller.jumpTo(snapPosition);
+      _ticker.stop();
+      _isScrolling = false;
+      _velocity = 0.0;
+      return;
+    }
+
+    // Only update if the change is significant (more than 0.5 pixels)
+    // This prevents micro-updates that cause vibration
+    if ((roundedScroll - currentOffset).abs() >= 0.5) {
+      widget.controller.jumpTo(roundedScroll);
+    }
   }
 
   void _updateLenis(double distance) {
@@ -177,15 +204,6 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
     // Ease-out: fast start, slow end
     final double t = distance.abs() / 100.0; // Normalize
     final double easeFactor = 1.0 - math.pow(1.0 - math.min(t, 1.0), 3);
-    _currentScroll += distance * widget.config.damping * easeFactor;
-  }
-
-  void _updateEaseInOut(double distance) {
-    // Ease-in-out: slow start, fast middle, slow end
-    final double t = distance.abs() / 100.0; // Normalize
-    final double easeFactor = t < 0.5
-        ? 2 * t * t
-        : 1 - math.pow(-2 * t + 2, 2) / 2;
     _currentScroll += distance * widget.config.damping * easeFactor;
   }
 
@@ -270,7 +288,8 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
     if (_currentScroll < minExtent) _currentScroll = minExtent;
     if (_currentScroll > maxExtent) _currentScroll = maxExtent;
 
-    widget.controller.jumpTo(_currentScroll);
+    // Round to avoid sub-pixel jitter during drag
+    widget.controller.jumpTo(_currentScroll.roundToDouble());
 
     // Stop interpolation while dragging
     _isScrolling = false;

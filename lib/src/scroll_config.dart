@@ -136,22 +136,6 @@ class SmoothScrollConfig {
     );
   }
 
-  /// Creates an ease-in-out scroll configuration.
-  factory SmoothScrollConfig.easeInOut({
-    double scrollSpeed = 1.2,
-    double damping = 0.1,
-    bool enableMomentum = true,
-    double momentumFactor = 0.5,
-  }) {
-    return SmoothScrollConfig(
-      scrollType: SmoothScrollType.easeInOut,
-      scrollSpeed: scrollSpeed,
-      damping: damping,
-      enableMomentum: enableMomentum,
-      momentumFactor: momentumFactor,
-    );
-  }
-
   /// Creates a custom scroll configuration.
   factory SmoothScrollConfig.custom({
     required double scrollSpeed,
@@ -194,8 +178,6 @@ class SmoothScrollConfig {
       case SmoothScrollType.elastic:
         return damping;
       case SmoothScrollType.easeOut:
-        return damping;
-      case SmoothScrollType.easeInOut:
         return damping;
       case SmoothScrollType.custom:
         return damping;

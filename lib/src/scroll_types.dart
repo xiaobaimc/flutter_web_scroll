@@ -16,10 +16,6 @@ enum SmoothScrollType {
   /// Starts fast and gradually slows down.
   easeOut,
 
-  /// Ease-in-out scrolling with acceleration and deceleration.
-  /// Smooth acceleration and deceleration for natural feel.
-  easeInOut,
-
   /// Custom scrolling with user-defined damping and speed.
   /// Allows fine-tuning of scroll behavior.
   custom,

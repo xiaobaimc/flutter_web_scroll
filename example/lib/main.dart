@@ -64,13 +64,6 @@ class ScrollTypeSelector extends StatelessWidget {
           ),
           _buildScrollTypeCard(
             context,
-            'Ease-in-out Scrolling',
-            'Smooth acceleration and deceleration',
-            SmoothScrollType.easeInOut,
-            Colors.pink,
-          ),
-          _buildScrollTypeCard(
-            context,
             'Custom Scrolling',
             'Fine-tuned custom behavior',
             SmoothScrollType.custom,
@@ -194,8 +187,6 @@ class _ScrollDemoPageState extends State<ScrollDemoPage> {
         );
       case SmoothScrollType.easeOut:
         return SmoothScrollConfig.easeOut(scrollSpeed: 1.2, damping: 0.12);
-      case SmoothScrollType.easeInOut:
-        return SmoothScrollConfig.easeInOut(scrollSpeed: 1.2, damping: 0.1);
       case SmoothScrollType.custom:
         return SmoothScrollConfig.custom(scrollSpeed: 1.5, damping: 0.06);
       case SmoothScrollType.native:
