@@ -2,6 +2,14 @@
 
 A high-performance, professional smooth scrolling package for Flutter web applications. Provides multiple scroll types including Lenis-style scrolling, linear interpolation, elastic spring physics, and custom behaviors.
 
+## Preview
+
+### Without smooth_scroll_web
+![Without smooth scroll](https://github.com/zenithsyntax/smooth_scroll_web/raw/main/assets/without_smooth_scroll_web.gif)
+
+### With smooth_scroll_web
+![With smooth scroll](https://github.com/zenithsyntax/smooth_scroll_web/raw/main/assets/with_smooth_scroll_web.gif)
+
 ## Features
 
 ✨ **Multiple Scroll Types**
