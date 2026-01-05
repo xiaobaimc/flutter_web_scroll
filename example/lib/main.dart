@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:smooth_scroll_web/smooth_scroll_web.dart';
 
@@ -69,10 +68,7 @@ class _PremiumHomePageState extends State<PremiumHomePage> {
     return Scaffold(
       body: SmoothScrollWeb(
         controller: _scrollController,
-        config: SmoothScrollConfig.lenis(
-          scrollSpeed: 1.2,
-          damping: 0.1,
-        ),
+        config: SmoothScrollConfig.lenis(scrollSpeed: 1.2, damping: 0.1),
         child: ListView(
           controller: _scrollController,
           padding: EdgeInsets.zero,
@@ -123,9 +119,9 @@ class _HeroSection extends StatelessWidget {
             child: Text(
               "FLUTTER WEB PACKAGE",
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: Colors.white70,
-                    fontSize: 12,
-                  ),
+                color: Colors.white70,
+                fontSize: 12,
+              ),
             ),
           ),
           const SizedBox(height: 24),
@@ -159,18 +155,13 @@ class _ScrollIndicator extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 1,
-          height: 60,
-          color: Colors.white24,
-        ),
+        Container(width: 1, height: 60, color: Colors.white24),
         const SizedBox(height: 16),
         Text(
           "SCROLL DOWN",
-          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-            fontSize: 10,
-            color: Colors.white30,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.labelLarge?.copyWith(fontSize: 10, color: Colors.white30),
         ),
       ],
     );
@@ -181,10 +172,7 @@ class _SectionHeader extends StatelessWidget {
   final String title;
   final String subtitle;
 
-  const _SectionHeader({
-    required this.title,
-    required this.subtitle,
-  });
+  const _SectionHeader({required this.title, required this.subtitle});
 
   @override
   Widget build(BuildContext context) {
@@ -195,16 +183,16 @@ class _SectionHeader extends StatelessWidget {
         children: [
           Text(
             title,
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: Colors.white54,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.labelLarge?.copyWith(color: Colors.white54),
           ),
           const SizedBox(height: 8),
           Text(
             subtitle,
-            style: Theme.of(context).textTheme.displayMedium?.copyWith(
-              fontSize: 32,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.displayMedium?.copyWith(fontSize: 32),
           ),
         ],
       ),
@@ -228,12 +216,6 @@ class _ScrollTypeGrid extends StatelessWidget {
             description: "Premium exponential decay. The gold standard.",
             type: SmoothScrollType.lenis,
             color: const Color(0xFF6E56CF),
-          ),
-          _ScrollCard(
-            title: "Ease Out",
-            description: "Fast start with a gentle, gradual stop.",
-            type: SmoothScrollType.easeOut,
-            color: const Color(0xFFFF8A00),
           ),
           _ScrollCard(
             title: "Linear",
@@ -329,7 +311,7 @@ class _ScrollCardState extends State<_ScrollCard> {
               ),
             );
           } else {
-             Navigator.push(
+            Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (context) => const NativeScrollDemoPage(),
@@ -356,7 +338,7 @@ class _ScrollCardState extends State<_ScrollCard> {
                       color: widget.color.withValues(alpha: 0.2),
                       blurRadius: 30,
                       offset: const Offset(0, 10),
-                    )
+                    ),
                   ]
                 : [],
           ),
@@ -426,9 +408,9 @@ class _Footer extends StatelessWidget {
       child: Center(
         child: Text(
           "BUILT WITH SMOOTH_SCROLL_WEB",
-          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-            color: Colors.white24,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.labelLarge?.copyWith(color: Colors.white24),
         ),
       ),
     );
@@ -506,29 +488,18 @@ class _ScrollDemoPageState extends State<ScrollDemoPage> {
             SliverPadding(
               padding: const EdgeInsets.all(24),
               sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 24),
-                      child: _DemoContentCard(index: index, color: widget.color),
-                    );
-                  },
-                  childCount: 20,
-                ),
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 24),
+                    child: _DemoContentCard(index: index, color: widget.color),
+                  );
+                }, childCount: 20),
               ),
             ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: widget.color,
-        child: const Icon(Icons.arrow_upward, color: Colors.black),
-        onPressed: () => _controller.animateTo(
-          0,
-          duration: const Duration(seconds: 1),
-          curve: Curves.easeOutExpo,
-        ),
-      ),
+     
     );
   }
 
@@ -539,9 +510,7 @@ class _ScrollDemoPageState extends State<ScrollDemoPage> {
       case SmoothScrollType.linear:
         return SmoothScrollConfig.linear();
       case SmoothScrollType.elastic:
-         return SmoothScrollConfig.elastic();
-      case SmoothScrollType.easeOut:
-        return SmoothScrollConfig.easeOut();
+        return SmoothScrollConfig.elastic();
       case SmoothScrollType.custom:
         return SmoothScrollConfig.custom(scrollSpeed: 1.5, damping: 0.05);
       case SmoothScrollType.native:
@@ -558,7 +527,7 @@ class NativeScrollDemoPage extends StatefulWidget {
 }
 
 class _NativeScrollDemoPageState extends State<NativeScrollDemoPage> {
-   final ScrollController _controller = ScrollController();
+  final ScrollController _controller = ScrollController();
 
   @override
   Widget build(BuildContext context) {
@@ -585,40 +554,29 @@ class _NativeScrollDemoPageState extends State<NativeScrollDemoPage> {
                 fontSize: 16,
               ),
             ),
-             bottom: PreferredSize(
-                preferredSize: const Size.fromHeight(1),
-                child: Container(color: Colors.black12, height: 1),
-              ),
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(1),
+              child: Container(color: Colors.black12, height: 1),
+            ),
           ),
           SliverPadding(
             padding: const EdgeInsets.all(24),
             sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 24),
-                    child: _DemoContentCard(
-                      index: index,
-                      color: Colors.black,
-                      isDark: false,
-                    ),
-                  );
-                },
-                childCount: 20,
-              ),
+              delegate: SliverChildBuilderDelegate((context, index) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 24),
+                  child: _DemoContentCard(
+                    index: index,
+                    color: Colors.black,
+                    isDark: false,
+                  ),
+                );
+              }, childCount: 20),
             ),
           ),
         ],
       ),
-       floatingActionButton: FloatingActionButton(
-        backgroundColor: Colors.black,
-        child: const Icon(Icons.arrow_upward, color: Colors.white),
-        onPressed: () => _controller.animateTo(
-          0,
-          duration: const Duration(milliseconds: 300), // Standard native speed
-          curve: Curves.linear,
-        ),
-      ),
+      
     );
   }
 }
@@ -641,9 +599,7 @@ class _DemoContentCard extends StatelessWidget {
       width: double.infinity,
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF5F5F5),
-        border: Border.all(
-          color: isDark ? Colors.white10 : Colors.black12,
-        ),
+        border: Border.all(color: isDark ? Colors.white10 : Colors.black12),
       ),
       padding: const EdgeInsets.all(32),
       child: Column(

@@ -12,10 +12,6 @@ enum SmoothScrollType {
   /// Provides a spring-like feel when reaching scroll limits.
   elastic,
 
-  /// Ease-out scrolling with deceleration curve.
-  /// Starts fast and gradually slows down.
-  easeOut,
-
   /// Custom scrolling with user-defined damping and speed.
   /// Allows fine-tuning of scroll behavior.
   custom,
@@ -24,4 +20,3 @@ enum SmoothScrollType {
   /// Mimics standard browser scrolling with natural momentum and deceleration.
   native,
 }
-

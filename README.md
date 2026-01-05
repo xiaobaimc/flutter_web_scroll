@@ -124,22 +124,6 @@ SmoothScrollWeb(
 )
 ```
 
-#### Ease-out Scrolling
-
-Fast start, gradual deceleration:
-
-```dart
-SmoothScrollWeb(
-  controller: _scrollController,
-  config: SmoothScrollConfig.easeOut(
-    scrollSpeed: 1.2,
-    damping: 0.12,
-    enableMomentum: true,
-  ),
-  child: ListView(...),
-)
-```
-
 #### Custom Scrolling
 
 Fine-tune your own behavior:

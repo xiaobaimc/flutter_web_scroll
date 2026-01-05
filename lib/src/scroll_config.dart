@@ -71,14 +71,17 @@ class SmoothScrollConfig {
     this.stopThreshold = 0.1,
     this.singleScrollHardEnd = true,
     this.singleScrollThreshold = 150,
-  })  : assert(scrollSpeed > 0, 'scrollSpeed must be positive'),
-        assert(damping > 0 && damping <= 1.0, 'damping must be between 0 and 1'),
-        assert(linearDuration > 0, 'linearDuration must be positive'),
-        assert(springStiffness > 0, 'springStiffness must be positive'),
-        assert(springDamping > 0, 'springDamping must be positive'),
-        assert(momentumFactor >= 0, 'momentumFactor must be non-negative'),
-        assert(stopThreshold > 0, 'stopThreshold must be positive'),
-        assert(singleScrollThreshold > 0, 'singleScrollThreshold must be positive');
+  }) : assert(scrollSpeed > 0, 'scrollSpeed must be positive'),
+       assert(damping > 0 && damping <= 1.0, 'damping must be between 0 and 1'),
+       assert(linearDuration > 0, 'linearDuration must be positive'),
+       assert(springStiffness > 0, 'springStiffness must be positive'),
+       assert(springDamping > 0, 'springDamping must be positive'),
+       assert(momentumFactor >= 0, 'momentumFactor must be non-negative'),
+       assert(stopThreshold > 0, 'stopThreshold must be positive'),
+       assert(
+         singleScrollThreshold > 0,
+         'singleScrollThreshold must be positive',
+       );
 
   /// Creates a Lenis-style scroll configuration.
   factory SmoothScrollConfig.lenis({
@@ -134,22 +137,6 @@ class SmoothScrollConfig {
     );
   }
 
-  /// Creates an ease-out scroll configuration.
-  factory SmoothScrollConfig.easeOut({
-    double scrollSpeed = 1.2,
-    double damping = 0.12,
-    bool enableMomentum = true,
-    double momentumFactor = 0.5,
-  }) {
-    return SmoothScrollConfig(
-      scrollType: SmoothScrollType.easeOut,
-      scrollSpeed: scrollSpeed,
-      damping: damping,
-      enableMomentum: enableMomentum,
-      momentumFactor: momentumFactor,
-    );
-  }
-
   /// Creates a custom scroll configuration.
   factory SmoothScrollConfig.custom({
     required double scrollSpeed,
@@ -196,8 +183,6 @@ class SmoothScrollConfig {
         return 1.0 / linearDuration * 16.67; // ~60fps frame time
       case SmoothScrollType.elastic:
         return damping;
-      case SmoothScrollType.easeOut:
-        return damping;
       case SmoothScrollType.custom:
         return damping;
       case SmoothScrollType.native:
@@ -205,4 +190,3 @@ class SmoothScrollConfig {
     }
   }
 }
-

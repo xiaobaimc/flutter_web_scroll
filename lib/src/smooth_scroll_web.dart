@@ -110,9 +110,6 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
       case SmoothScrollType.elastic:
         _updateElastic(distance);
         break;
-      case SmoothScrollType.easeOut:
-        _updateEaseOut(distance);
-        break;
       case SmoothScrollType.custom:
         _updateCustom(distance);
         break;
@@ -143,9 +140,8 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
 
     // Smooth stop: only stop when velocity is essentially zero AND we're very close
     // Use more lenient thresholds to prevent premature stops during deceleration
-    final double velocityThreshold =
-        0.0001; // Extremely low velocity threshold
-    final double distanceThreshold = 0.0000001; // Very small distance threshold
+    final double velocityThreshold = 0.00001; // Extremely low velocity threshold
+    final double distanceThreshold = 0.00000001; // Very small distance threshold
 
     // Check if we should stop: velocity is essentially zero AND distance is tiny
     // This ensures we only stop when truly at rest, not during smooth deceleration
@@ -209,23 +205,6 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
 
     // Apply damping to velocity
     _velocity *= 0.95;
-  }
-
-  void _updateEaseOut(double distance) {
-    // Ease-out: fast start, slow end with smooth continuous deceleration
-    final double absDistance = distance.abs();
-    final double t = math.min(absDistance / 100.0, 1.0); // Normalize
-
-    // Enhanced ease-out curve for smoother deceleration
-    final double easeFactor = 1.0 - math.pow(1.0 - t, 3);
-
-    // Only apply gentle deceleration when very close to target
-    final double smoothFactor = absDistance < 5.0
-        ? math.max(0.7, absDistance / 5.0)
-        : 1.0;
-
-    _currentScroll +=
-        distance * widget.config.damping * easeFactor * smoothFactor;
   }
 
   void _updateCustom(double distance) {
