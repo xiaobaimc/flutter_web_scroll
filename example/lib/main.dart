@@ -76,6 +76,12 @@ class ScrollTypeSelector extends StatelessWidget {
             SmoothScrollType.native,
             Colors.indigo,
           ),
+          _buildNativeScrollCard(
+            context,
+            'Native Browser Scroll (Without Package)',
+            'Default Flutter scrolling - compare the difference!',
+            Colors.red,
+          ),
         ],
       ),
     );
@@ -141,6 +147,167 @@ class ScrollTypeSelector extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildNativeScrollCard(
+    BuildContext context,
+    String title,
+    String description,
+    Color color,
+  ) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 4,
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  NativeScrollDemoPage(title: title, color: color),
+            ),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.compare_arrows, color: color, size: 30),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: color,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      description,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class NativeScrollDemoPage extends StatefulWidget {
+  final String title;
+  final Color color;
+
+  const NativeScrollDemoPage({
+    super.key,
+    required this.title,
+    required this.color,
+  });
+
+  @override
+  State<NativeScrollDemoPage> createState() => _NativeScrollDemoPageState();
+}
+
+class _NativeScrollDemoPageState extends State<NativeScrollDemoPage> {
+  late ScrollController _scrollController;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.title),
+        backgroundColor: widget.color.withOpacity(0.2),
+        foregroundColor: widget.color,
+      ),
+      body: ListView.builder(
+        controller: _scrollController,
+        padding: const EdgeInsets.all(16),
+        itemCount: 50,
+        itemBuilder: (context, index) {
+          return Container(
+            height: 150,
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  widget.color.withOpacity(0.3),
+                  widget.color.withOpacity(0.1),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: widget.color.withOpacity(0.3),
+                width: 2,
+              ),
+            ),
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.article, size: 48, color: widget.color),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Item ${index + 1}',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: widget.color,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Native browser scrolling (no package)',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium?.copyWith(color: Colors.grey[700]),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          _scrollController.animateTo(
+            0,
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeOut,
+          );
+        },
+        backgroundColor: widget.color,
+        child: const Icon(Icons.arrow_upward),
       ),
     );
   }

@@ -47,6 +47,17 @@ class SmoothScrollConfig {
   /// Default: 0.1
   final double stopThreshold;
 
+  /// For native scroll type: make single scroll actions stop more definitively.
+  /// When true, single scrolls will have a "hard" end (snap to position).
+  /// When false, single scrolls will have a "soft" end (smooth deceleration).
+  /// Default: true
+  final bool singleScrollHardEnd;
+
+  /// For native scroll type: time threshold (ms) to detect single scroll vs continuous.
+  /// If time between scrolls exceeds this, it's considered a single scroll.
+  /// Default: 150
+  final int singleScrollThreshold;
+
   const SmoothScrollConfig({
     this.scrollType = SmoothScrollType.lenis,
     this.scrollSpeed = 1.2,
@@ -58,13 +69,16 @@ class SmoothScrollConfig {
     this.momentumFactor = 0.5,
     this.enableElasticOverscroll = true,
     this.stopThreshold = 0.1,
+    this.singleScrollHardEnd = true,
+    this.singleScrollThreshold = 150,
   })  : assert(scrollSpeed > 0, 'scrollSpeed must be positive'),
         assert(damping > 0 && damping <= 1.0, 'damping must be between 0 and 1'),
         assert(linearDuration > 0, 'linearDuration must be positive'),
         assert(springStiffness > 0, 'springStiffness must be positive'),
         assert(springDamping > 0, 'springDamping must be positive'),
         assert(momentumFactor >= 0, 'momentumFactor must be non-negative'),
-        assert(stopThreshold > 0, 'stopThreshold must be positive');
+        assert(stopThreshold > 0, 'stopThreshold must be positive'),
+        assert(singleScrollThreshold > 0, 'singleScrollThreshold must be positive');
 
   /// Creates a Lenis-style scroll configuration.
   factory SmoothScrollConfig.lenis({
@@ -154,10 +168,13 @@ class SmoothScrollConfig {
 
   /// Creates a native HTML web scroll configuration.
   /// Mimics standard browser scrolling behavior with natural momentum.
+  /// Single scroll actions will stop definitively (hard end) by default.
   factory SmoothScrollConfig.native({
     double scrollSpeed = 1.0,
     bool enableMomentum = true,
     double momentumFactor = 0.6,
+    bool singleScrollHardEnd = true,
+    int singleScrollThreshold = 150,
   }) {
     return SmoothScrollConfig(
       scrollType: SmoothScrollType.native,
@@ -165,6 +182,8 @@ class SmoothScrollConfig {
       damping: 0.15, // Medium damping for natural feel
       enableMomentum: enableMomentum,
       momentumFactor: momentumFactor,
+      singleScrollHardEnd: singleScrollHardEnd,
+      singleScrollThreshold: singleScrollThreshold,
     );
   }
 

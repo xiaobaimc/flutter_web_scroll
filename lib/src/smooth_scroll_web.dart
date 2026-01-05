@@ -56,6 +56,7 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
   bool _isScrolling = false;
   DateTime? _lastScrollTime;
   double _lastScrollDelta = 0.0;
+  bool _isSingleScroll = false;
 
   @override
   void initState() {
@@ -111,6 +112,7 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
       _ticker.stop();
       _isScrolling = false;
       _velocity = 0.0;
+      _isSingleScroll = false;
       return;
     }
 
@@ -156,7 +158,10 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
     final double currentOffset = widget.controller.offset;
 
     // If very close to target (within 1 pixel), snap directly to prevent shake
-    if (newDistance.abs() < 1.0) {
+    // For single scrolls with hard end, use larger threshold for definitive stop
+    final double snapThreshold =
+        (_isSingleScroll && widget.config.singleScrollHardEnd) ? 3.0 : 1.0;
+    if (newDistance.abs() < snapThreshold) {
       final double snapPosition = roundedTargetAfter;
       _currentScroll = snapPosition;
       _targetScroll = snapPosition;
@@ -164,6 +169,7 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
       _ticker.stop();
       _isScrolling = false;
       _velocity = 0.0;
+      _isSingleScroll = false;
       return;
     }
 
@@ -214,22 +220,41 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
 
   void _updateNative(double distance) {
     // Native browser-style scrolling with natural deceleration
-    // Uses cubic ease-out for smooth, responsive feel similar to browser scrolling
+    // For single scrolls, provides definitive stopping (hard/soft end)
     final double absDistance = distance.abs();
     if (absDistance < 0.1) {
       _currentScroll = _targetScroll;
+      _isSingleScroll = false;
       return;
     }
 
-    // Cubic ease-out curve: 1 - (1-t)^3
-    // This provides the natural deceleration feel of native browser scrolling
-    final double t = math.min(absDistance / 50.0, 1.0);
-    final double easeFactor = 1.0 - math.pow(1.0 - t, 3);
+    // If it's a single scroll with hard end, use faster damping for definitive stop
+    if (_isSingleScroll && widget.config.singleScrollHardEnd) {
+      // Hard end: faster damping for quick, definitive stop
+      // Use higher damping to stop more quickly
+      final double hardDamping = widget.config.damping * 2.5;
+      final double step = distance * hardDamping;
 
-    // Apply damping with ease factor for natural feel
-    final double step =
-        distance * widget.config.damping * (0.5 + easeFactor * 0.5);
-    _currentScroll += step;
+      // If very close to target, snap directly for hard end
+      if (absDistance < 5.0) {
+        _currentScroll = _targetScroll;
+        _isSingleScroll = false;
+        return;
+      }
+
+      _currentScroll += step;
+    } else {
+      // Soft end or continuous scroll: smooth deceleration
+      // Cubic ease-out curve: 1 - (1-t)^3
+      // This provides the natural deceleration feel of native browser scrolling
+      final double t = math.min(absDistance / 50.0, 1.0);
+      final double easeFactor = 1.0 - math.pow(1.0 - t, 3);
+
+      // Apply damping with ease factor for natural feel
+      final double step =
+          distance * widget.config.damping * (0.5 + easeFactor * 0.5);
+      _currentScroll += step;
+    }
   }
 
   void _onScroll(PointerScrollEvent event) {
@@ -247,15 +272,31 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
 
     // Track velocity for momentum
     final DateTime now = DateTime.now();
+
+    // Detect single scroll vs continuous scroll
     if (_lastScrollTime != null) {
-      final double dt =
-          (now.difference(_lastScrollTime!).inMilliseconds) /
-          1000.0; // Convert to seconds
+      final int timeSinceLastScroll = now
+          .difference(_lastScrollTime!)
+          .inMilliseconds;
+
+      // If time since last scroll exceeds threshold, it's a new single scroll
+      if (timeSinceLastScroll > widget.config.singleScrollThreshold) {
+        _isSingleScroll = true;
+      } else {
+        // Continuous scrolling - not a single scroll
+        _isSingleScroll = false;
+      }
+
+      final double dt = timeSinceLastScroll / 1000.0; // Convert to seconds
       if (dt > 0 && dt < 0.1) {
         // Calculate velocity (pixels per second)
         _velocity = event.scrollDelta.dy / dt;
       }
+    } else {
+      // First scroll - treat as single scroll
+      _isSingleScroll = true;
     }
+
     _lastScrollTime = now;
     _lastScrollDelta = event.scrollDelta.dy;
 
