@@ -13,8 +13,13 @@ import 'scroll_types.dart';
 /// elastic, and custom behaviors. Designed to replace native scrolling with
 /// smooth, customizable scroll experiences.
 ///
+/// This widget wraps scrollable widgets (ListView, CustomScrollView, etc.)
+/// and provides smooth, physics-based scrolling animations that run at 60fps.
+///
 /// Example:
 /// ```dart
+/// import 'package:flutter_web_scroll/flutter_web_scroll.dart';
+///
 /// SmoothScrollWeb(
 ///   controller: _scrollController,
 ///   config: SmoothScrollConfig.lenis(),
@@ -23,15 +28,27 @@ import 'scroll_types.dart';
 /// ```
 class SmoothScrollWeb extends StatefulWidget {
   /// The child widget to wrap with smooth scrolling.
+  ///
+  /// Typically a [ListView], [CustomScrollView], or other scrollable widget.
   final Widget child;
 
   /// The scroll controller to manage scroll position.
+  ///
+  /// Must be the same controller used by the child scrollable widget.
   final ScrollController controller;
 
   /// Configuration for scroll behavior.
-  /// Defaults to Lenis-style scrolling.
+  ///
+  /// Defaults to Lenis-style scrolling with optimized parameters.
   final SmoothScrollConfig config;
 
+  /// Creates a [SmoothScrollWeb] widget.
+  ///
+  /// The [controller] must be provided and should be the same instance
+  /// used by the child scrollable widget.
+  ///
+  /// The [config] parameter allows customization of scroll behavior.
+  /// If not provided, defaults to Lenis-style scrolling.
   const SmoothScrollWeb({
     super.key,
     required this.child,
@@ -47,28 +64,100 @@ class SmoothScrollWeb extends StatefulWidget {
   State<SmoothScrollWeb> createState() => _SmoothScrollWebState();
 }
 
+/// Internal state for [SmoothScrollWeb].
+///
+/// Manages scroll animation, velocity tracking, and gesture handling.
 class _SmoothScrollWebState extends State<SmoothScrollWeb>
     with SingleTickerProviderStateMixin {
-  late Ticker _ticker;
+  /// Animation ticker for smooth scroll updates.
+  late final Ticker _ticker;
+
+  /// Target scroll position to animate towards.
   double _targetScroll = 0.0;
+
+  /// Current scroll position during animation.
   double _currentScroll = 0.0;
+
+  /// Current scroll velocity (pixels per second).
   double _velocity = 0.0;
+
+  /// Whether scrolling animation is currently active.
   bool _isScrolling = false;
+
+  /// Timestamp of the last scroll event for velocity calculation.
   DateTime? _lastScrollTime;
+
+  /// Last scroll delta for momentum calculation.
   double _lastScrollDelta = 0.0;
+
+  /// Frame time in seconds (approximately 16.67ms at 60fps).
+  static const double _frameTimeSeconds = 1.0 / 60.0;
+
+  /// Velocity threshold for stopping animation (pixels per frame).
+  static const double _velocityThreshold = 0.00001;
+
+  /// Distance threshold for stopping animation (pixels).
+  static const double _distanceThreshold = 0.00000001;
+
+  /// Minimum pixel change required to update scroll position.
+  static const double _minUpdateDelta = 0.5;
+
+  /// Deceleration distance threshold for Lenis-style scrolling.
+  static const double _lenisDecelerationThreshold = 5.0;
+
+  /// Deceleration distance threshold for linear scrolling.
+  static const double _linearDecelerationThreshold = 3.0;
+
+  /// Deceleration distance threshold for custom scrolling.
+  static const double _customDecelerationThreshold = 5.0;
+
+  /// Deceleration distance threshold for native scrolling.
+  static const double _nativeDecelerationThreshold = 5.0;
+
+  /// Minimum deceleration factor to prevent micro-stops.
+  static const double _minDecelerationFactor = 0.7;
+
+  /// Linear deceleration minimum factor.
+  static const double _linearMinDecelerationFactor = 0.8;
+
+  /// Spring velocity damping factor.
+  static const double _springVelocityDamping = 0.95;
+
+  /// Native scroll ease-out distance normalization.
+  static const double _nativeEaseDistance = 50.0;
+
+  /// Native scroll ease-out power.
+  static const double _nativeEasePower = 3.0;
+
+  /// Maximum time delta for velocity calculation (seconds).
+  static const double _maxVelocityTimeDelta = 0.1;
+
+  /// Maximum time delta for scroll velocity tracking (seconds).
+  static const double _maxScrollVelocityTimeDelta = 0.2;
+
+  /// Minimum scroll delta to consider for velocity tracking.
+  static const double _minScrollDelta = 0.0;
+
+  /// Position sync threshold (pixels).
+  static const double _positionSyncThreshold = 1.0;
 
   @override
   void initState() {
     super.initState();
     _ticker = createTicker(_tick);
+    _syncScrollPosition();
+  }
 
-    // Sync initial values
+  /// Synchronizes the internal scroll position with the controller.
+  ///
+  /// Called after the first frame to ensure the controller is attached
+  /// and has valid scroll extents.
+  void _syncScrollPosition() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      if (widget.controller.hasClients) {
-        _targetScroll = widget.controller.offset;
-        _currentScroll = widget.controller.offset;
-      }
+      if (!mounted || !widget.controller.hasClients) return;
+      final double offset = widget.controller.offset;
+      _targetScroll = offset;
+      _currentScroll = offset;
     });
   }
 
@@ -76,11 +165,16 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
   void didUpdateWidget(SmoothScrollWeb oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.controller != widget.controller) {
-      // Controller changed, resync
-      if (widget.controller.hasClients) {
-        _targetScroll = widget.controller.offset;
-        _currentScroll = widget.controller.offset;
-      }
+      _resyncController();
+    }
+  }
+
+  /// Resynchronizes scroll position when the controller changes.
+  void _resyncController() {
+    if (widget.controller.hasClients) {
+      final double offset = widget.controller.offset;
+      _targetScroll = offset;
+      _currentScroll = offset;
     }
   }
 
@@ -91,15 +185,49 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
     super.dispose();
   }
 
+  /// Gets the current frame time in seconds.
+  ///
+  /// Uses the actual elapsed time from the ticker for accurate physics
+  /// calculations, falling back to estimated 60fps frame time.
+  double _getFrameTime(Duration elapsed) {
+    final double seconds = elapsed.inMicroseconds / 1000000.0;
+    return seconds > 0 ? seconds : _frameTimeSeconds;
+  }
+
+  /// Main animation tick callback.
+  ///
+  /// Updates scroll position based on the configured scroll type and
+  /// applies physics-based interpolation.
+  ///
+  /// [elapsed] is the time elapsed since the ticker started.
   void _tick(Duration elapsed) {
     if (!mounted || !widget.controller.hasClients) return;
 
     final double distance = _targetScroll - _currentScroll;
-
-    // Calculate velocity magnitude for smooth stopping
     final double previousScroll = _currentScroll;
+    final double frameTime = _getFrameTime(elapsed);
 
     // Apply scroll type-specific interpolation
+    _applyScrollInterpolation(distance, frameTime);
+
+    // Clamp to scroll bounds (unless elastic overscroll is enabled)
+    _clampScrollPosition();
+
+    // Check if animation should stop
+    if (_shouldStopAnimation(previousScroll)) {
+      _stopAnimation();
+      return;
+    }
+
+    // Update controller if change is significant
+    _updateControllerIfNeeded();
+  }
+
+  /// Applies scroll interpolation based on the configured scroll type.
+  ///
+  /// [distance] is the distance to the target position.
+  /// [frameTime] is the time elapsed since last frame in seconds.
+  void _applyScrollInterpolation(double distance, double frameTime) {
     switch (widget.config.scrollType) {
       case SmoothScrollType.lenis:
         _updateLenis(distance);
@@ -108,7 +236,7 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
         _updateLinear(distance);
         break;
       case SmoothScrollType.elastic:
-        _updateElastic(distance);
+        _updateElastic(distance, frameTime);
         break;
       case SmoothScrollType.custom:
         _updateCustom(distance);
@@ -117,74 +245,93 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
         _updateNative(distance);
         break;
     }
+  }
 
-    // Clamp to scroll bounds (unless elastic overscroll is enabled)
+  /// Clamps scroll position to valid bounds.
+  ///
+  /// Allows temporary overscroll for elastic effects if enabled.
+  void _clampScrollPosition() {
+    if (!widget.controller.hasClients) return;
+
     final double maxExtent = widget.controller.position.maxScrollExtent;
     final double minExtent = widget.controller.position.minScrollExtent;
 
-    if (widget.config.scrollType == SmoothScrollType.elastic &&
-        widget.config.enableElasticOverscroll) {
-      // Allow temporary overscroll for elastic effect
-      // Will be pulled back by spring physics
-    } else {
+    final bool allowOverscroll =
+        widget.config.scrollType == SmoothScrollType.elastic &&
+            widget.config.enableElasticOverscroll;
+
+    if (!allowOverscroll) {
       if (_currentScroll < minExtent) _currentScroll = minExtent;
       if (_currentScroll > maxExtent) _currentScroll = maxExtent;
     }
+  }
 
-    // Calculate current velocity (pixels per frame, ~16.67ms at 60fps)
+  /// Determines if the animation should stop.
+  ///
+  /// Returns true when velocity and distance are below thresholds,
+  /// indicating the scroll has reached rest.
+  bool _shouldStopAnimation(double previousScroll) {
     final double currentVelocity = (_currentScroll - previousScroll).abs();
-    final double newDistance = _targetScroll - _currentScroll;
+    final double newDistance = (_targetScroll - _currentScroll).abs();
+
+    return currentVelocity < _velocityThreshold &&
+        newDistance < _distanceThreshold;
+  }
+
+  /// Stops the animation and settles to final position.
+  void _stopAnimation() {
+    final double finalPosition = _targetScroll.roundToDouble();
+    _currentScroll = finalPosition;
+    _targetScroll = finalPosition;
+    widget.controller.jumpTo(finalPosition);
+    _ticker.stop();
+    _isScrolling = false;
+    _velocity = 0.0;
+  }
+
+  /// Updates the scroll controller if the change is significant.
+  ///
+  /// Prevents micro-updates that can cause visual vibration.
+  void _updateControllerIfNeeded() {
+    if (!widget.controller.hasClients) return;
+
     final double roundedScroll = _currentScroll.roundToDouble();
-    final double roundedTargetAfter = _targetScroll.roundToDouble();
     final double currentOffset = widget.controller.offset;
+    final double delta = (roundedScroll - currentOffset).abs();
 
-    // Smooth stop: only stop when velocity is essentially zero AND we're very close
-    // Use more lenient thresholds to prevent premature stops during deceleration
-    final double velocityThreshold = 0.00001; // Extremely low velocity threshold
-    final double distanceThreshold = 0.00000001; // Very small distance threshold
-
-    // Check if we should stop: velocity is essentially zero AND distance is tiny
-    // This ensures we only stop when truly at rest, not during smooth deceleration
-    if (currentVelocity < velocityThreshold &&
-        newDistance.abs() < distanceThreshold) {
-      // Smoothly settle to final position
-      final double finalPosition = roundedTargetAfter;
-      _currentScroll = finalPosition;
-      _targetScroll = finalPosition;
-      widget.controller.jumpTo(finalPosition);
-      _ticker.stop();
-      _isScrolling = false;
-      _velocity = 0.0;
-      return;
-    }
-
-    // Only update if the change is significant (more than 0.5 pixels)
-    // This prevents micro-updates that cause vibration
-    if ((roundedScroll - currentOffset).abs() >= 0.5) {
+    if (delta >= _minUpdateDelta) {
       widget.controller.jumpTo(roundedScroll);
     }
   }
 
+  /// Updates scroll position using Lenis-style exponential decay.
+  ///
+  /// Provides smooth, continuous deceleration with exponential interpolation.
+  /// Applies gentle deceleration near the target to prevent micro-stops.
+  ///
+  /// [distance] is the distance to the target position.
   void _updateLenis(double distance) {
-    // Exponential decay (Lenis-style) with smooth, continuous deceleration
     final double absDistance = distance.abs();
-
-    // Only apply gentle deceleration when very close to target
-    // This ensures smooth, continuous motion without micro-stops
-    final double decelerationFactor = absDistance < 5.0
-        ? math.max(0.7, absDistance / 5.0)
+    final double decelerationFactor = absDistance < _lenisDecelerationThreshold
+        ? math.max(
+            _minDecelerationFactor, absDistance / _lenisDecelerationThreshold)
         : 1.0;
 
     _currentScroll += distance * widget.config.damping * decelerationFactor;
   }
 
+  /// Updates scroll position using linear interpolation.
+  ///
+  /// Provides constant-speed interpolation with smooth deceleration near target.
+  ///
+  /// [distance] is the distance to the target position.
   void _updateLinear(double distance) {
-    // Linear interpolation with smooth, continuous motion
     final double absDistance = distance.abs();
-
-    // Only apply gentle deceleration when very close to target
-    final double decelerationFactor = absDistance < 3.0
-        ? math.max(0.8, absDistance / 3.0)
+    final double decelerationFactor = absDistance < _linearDecelerationThreshold
+        ? math.max(
+            _linearMinDecelerationFactor,
+            absDistance / _linearDecelerationThreshold,
+          )
         : 1.0;
 
     final double step =
@@ -196,76 +343,108 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
     }
   }
 
-  void _updateElastic(double distance) {
-    // Spring physics simulation
+  /// Updates scroll position using elastic spring physics.
+  ///
+  /// Simulates spring-mass-damper system for bouncy, elastic scrolling.
+  ///
+  /// [distance] is the distance to the target position.
+  /// [frameTime] is the time elapsed since last frame in seconds.
+  void _updateElastic(double distance, double frameTime) {
     final double springForce = distance * widget.config.springStiffness;
-    _velocity += springForce * 0.016; // ~60fps
-    _velocity *= (1.0 - widget.config.springDamping * 0.016);
-    _currentScroll += _velocity * 0.016;
+    _velocity += springForce * frameTime;
+    _velocity *= (1.0 - widget.config.springDamping * frameTime);
+    _currentScroll += _velocity * frameTime;
 
-    // Apply damping to velocity
-    _velocity *= 0.95;
+    // Apply additional velocity damping for stability
+    _velocity *= _springVelocityDamping;
   }
 
+  /// Updates scroll position using custom damping.
+  ///
+  /// Applies user-defined damping with smooth deceleration near target.
+  ///
+  /// [distance] is the distance to the target position.
   void _updateCustom(double distance) {
-    // Custom damping with smooth, continuous motion
     final double absDistance = distance.abs();
-
-    // Only apply gentle deceleration when very close to target
-    final double decelerationFactor = absDistance < 5.0
-        ? math.max(0.7, absDistance / 5.0)
+    final double decelerationFactor = absDistance < _customDecelerationThreshold
+        ? math.max(
+            _minDecelerationFactor,
+            absDistance / _customDecelerationThreshold,
+          )
         : 1.0;
 
     _currentScroll += distance * widget.config.damping * decelerationFactor;
   }
 
+  /// Updates scroll position using native browser-style scrolling.
+  ///
+  /// Mimics standard browser scrolling with ease-out deceleration curve.
+  ///
+  /// [distance] is the distance to the target position.
   void _updateNative(double distance) {
-    // Native browser-style scrolling with natural smooth deceleration
     final double absDistance = distance.abs();
 
     // Smooth ease-out curve for natural deceleration
-    final double t = math.min(absDistance / 50.0, 1.0);
-    final double easeFactor = 1.0 - math.pow(1.0 - t, 3);
+    final double t = math.min(absDistance / _nativeEaseDistance, 1.0);
+    final double easeFactor = 1.0 - math.pow(1.0 - t, _nativeEasePower);
 
-    // Only apply gentle deceleration when very close to target
-    // This ensures continuous smooth motion without micro-stops
-    final double smoothFactor = absDistance < 5.0
-        ? math.max(0.7, absDistance / 5.0)
+    // Apply gentle deceleration when very close to target
+    final double smoothFactor = absDistance < _nativeDecelerationThreshold
+        ? math.max(
+            _minDecelerationFactor,
+            absDistance / _nativeDecelerationThreshold,
+          )
         : 1.0;
 
     // Apply damping with ease factor and smooth factor for natural feel
-    final double step =
-        distance *
+    final double step = distance *
         widget.config.damping *
         (0.5 + easeFactor * 0.5) *
         smoothFactor;
     _currentScroll += step;
   }
 
+  /// Handles pointer scroll events (mouse wheel, trackpad).
+  ///
+  /// Updates target scroll position and calculates velocity for momentum.
+  ///
+  /// [event] contains scroll delta and timing information.
   void _onScroll(PointerScrollEvent event) {
     if (!mounted || !widget.controller.hasClients) return;
 
-    final double maxExtent = widget.controller.position.maxScrollExtent;
-    final double minExtent = widget.controller.position.minScrollExtent;
+    _syncPositionIfNeeded();
+    _updateScrollVelocity(event);
+    _updateTargetScroll(event);
+    _startScrollingIfNeeded();
+  }
 
-    // Initialize if needed (in case of manual native scrolling mixed in)
+  /// Synchronizes position if there's a significant discrepancy.
+  ///
+  /// Handles cases where native scrolling may have occurred externally.
+  void _syncPositionIfNeeded() {
     if (!_isScrolling &&
-        (widget.controller.offset - _currentScroll).abs() > 1.0) {
-      _currentScroll = widget.controller.offset;
-      _targetScroll = widget.controller.offset;
+        (widget.controller.offset - _currentScroll).abs() >
+            _positionSyncThreshold) {
+      final double offset = widget.controller.offset;
+      _currentScroll = offset;
+      _targetScroll = offset;
     }
+  }
 
-    // Track velocity for momentum
+  /// Updates scroll velocity based on recent scroll events.
+  ///
+  /// Calculates velocity in pixels per second for momentum scrolling.
+  ///
+  /// [event] contains the scroll delta information.
+  void _updateScrollVelocity(PointerScrollEvent event) {
     final DateTime now = DateTime.now();
 
-    // Track velocity for momentum
     if (_lastScrollTime != null) {
-      final int timeSinceLastScroll = now
-          .difference(_lastScrollTime!)
-          .inMilliseconds;
-
+      final int timeSinceLastScroll =
+          now.difference(_lastScrollTime!).inMilliseconds;
       final double dt = timeSinceLastScroll / 1000.0; // Convert to seconds
-      if (dt > 0 && dt < 0.1) {
+
+      if (dt > 0 && dt < _maxVelocityTimeDelta) {
         // Calculate velocity (pixels per second)
         _velocity = event.scrollDelta.dy / dt;
       }
@@ -273,20 +452,40 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
 
     _lastScrollTime = now;
     _lastScrollDelta = event.scrollDelta.dy;
+  }
 
-    // Accumulate the target scroll
+  /// Updates the target scroll position based on scroll event.
+  ///
+  /// Applies scroll speed multiplier and clamps to valid bounds.
+  ///
+  /// [event] contains the scroll delta information.
+  void _updateTargetScroll(PointerScrollEvent event) {
+    if (!widget.controller.hasClients) return;
+
+    final double maxExtent = widget.controller.position.maxScrollExtent;
+    final double minExtent = widget.controller.position.minScrollExtent;
+
+    // Accumulate the target scroll with speed multiplier
     _targetScroll += event.scrollDelta.dy * widget.config.scrollSpeed;
 
-    // Clamp target to prevent infinite "catch up" if user scrolls wildly past bounds
+    // Clamp target to prevent infinite "catch up" if user scrolls past bounds
     if (_targetScroll < minExtent) _targetScroll = minExtent;
     if (_targetScroll > maxExtent) _targetScroll = maxExtent;
+  }
 
+  /// Starts the scrolling animation if not already active.
+  void _startScrollingIfNeeded() {
     if (!_isScrolling) {
       _isScrolling = true;
       _ticker.start();
     }
   }
 
+  /// Handles vertical drag update events (touch/mouse drag).
+  ///
+  /// Provides 1:1 tracking of drag position for immediate responsiveness.
+  ///
+  /// [details] contains drag delta and position information.
   void _onVerticalDragUpdate(DragUpdateDetails details) {
     if (!widget.controller.hasClients) return;
 
@@ -295,23 +494,41 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
     _targetScroll -= details.delta.dy;
     _currentScroll = _targetScroll;
 
-    // Clamp
-    final double maxExtent = widget.controller.position.maxScrollExtent;
-    final double minExtent = widget.controller.position.minScrollExtent;
-    if (_targetScroll < minExtent) _targetScroll = minExtent;
-    if (_targetScroll > maxExtent) _targetScroll = maxExtent;
-    if (_currentScroll < minExtent) _currentScroll = minExtent;
-    if (_currentScroll > maxExtent) _currentScroll = maxExtent;
+    // Clamp to valid scroll bounds
+    _clampDragPosition();
 
     // Round to avoid sub-pixel jitter during drag
     widget.controller.jumpTo(_currentScroll.roundToDouble());
 
     // Stop interpolation while dragging
+    _stopDragInterpolation();
+  }
+
+  /// Clamps drag position to valid scroll bounds.
+  void _clampDragPosition() {
+    if (!widget.controller.hasClients) return;
+
+    final double maxExtent = widget.controller.position.maxScrollExtent;
+    final double minExtent = widget.controller.position.minScrollExtent;
+
+    if (_targetScroll < minExtent) _targetScroll = minExtent;
+    if (_targetScroll > maxExtent) _targetScroll = maxExtent;
+    if (_currentScroll < minExtent) _currentScroll = minExtent;
+    if (_currentScroll > maxExtent) _currentScroll = maxExtent;
+  }
+
+  /// Stops interpolation during drag for immediate response.
+  void _stopDragInterpolation() {
     _isScrolling = false;
     _ticker.stop();
     _velocity = 0.0;
   }
 
+  /// Handles vertical drag end events (touch/mouse release).
+  ///
+  /// Applies momentum scrolling if enabled, projecting velocity forward.
+  ///
+  /// [details] contains velocity and drag end information.
   void _onVerticalDragEnd(DragEndDetails details) {
     if (!widget.config.enableMomentum) {
       _isScrolling = false;
@@ -319,35 +536,52 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
       return;
     }
 
-    // Project momentum based on velocity
-    double velocity = details.primaryVelocity ?? 0;
+    final double velocity = _calculateMomentumVelocity(details);
+    _applyMomentum(velocity);
+    _startScrollingIfNeeded();
+  }
 
-    // If we have tracked velocity from scroll events, use that
+  /// Calculates momentum velocity from drag end or recent scroll events.
+  ///
+  /// Prefers tracked scroll velocity if recent, otherwise uses drag velocity.
+  ///
+  /// [details] contains drag end velocity information.
+  /// Returns velocity in pixels per second.
+  double _calculateMomentumVelocity(DragEndDetails details) {
+    double velocity = details.primaryVelocity ?? 0.0;
+
+    // If we have tracked velocity from recent scroll events, use that
     if (_lastScrollTime != null) {
       final DateTime now = DateTime.now();
-      final double dt =
-          (now.difference(_lastScrollTime!).inMilliseconds) / 1000.0;
-      if (dt < 0.2 && _lastScrollDelta.abs() > 0) {
-        // Use recent scroll velocity
+      final int timeSinceLastScroll =
+          now.difference(_lastScrollTime!).inMilliseconds;
+      final double dt = timeSinceLastScroll / 1000.0;
+
+      if (dt < _maxScrollVelocityTimeDelta &&
+          _lastScrollDelta.abs() > _minScrollDelta) {
+        // Use recent scroll velocity (convert to pixels per second)
         velocity = -_lastScrollDelta * 1000.0 / dt;
       }
     }
 
-    // Apply momentum factor
+    return velocity;
+  }
+
+  /// Applies momentum to target scroll position.
+  ///
+  /// Projects velocity forward using momentum factor and clamps to bounds.
+  ///
+  /// [velocity] is the velocity in pixels per second.
+  void _applyMomentum(double velocity) {
+    // Apply momentum factor to project velocity forward
     _targetScroll -= velocity * widget.config.momentumFactor;
 
-    // Clamp target
+    // Clamp target to valid bounds
     if (widget.controller.hasClients) {
       final double maxExtent = widget.controller.position.maxScrollExtent;
       final double minExtent = widget.controller.position.minScrollExtent;
       if (_targetScroll < minExtent) _targetScroll = minExtent;
       if (_targetScroll > maxExtent) _targetScroll = maxExtent;
-    }
-
-    // Start the interpolation to the new target
-    if (!_isScrolling) {
-      _isScrolling = true;
-      _ticker.start();
     }
   }
 

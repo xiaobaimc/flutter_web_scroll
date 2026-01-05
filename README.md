@@ -1,4 +1,4 @@
-# Smooth Scroll Web
+# Flutter Web Scroll
 
 A high-performance, professional smooth scrolling package for Flutter web applications. Provides multiple scroll types including Lenis-style scrolling, linear interpolation, elastic spring physics, custom behaviors, and native browser scrolling.
 
@@ -168,7 +168,7 @@ SmoothScrollWeb(
 
 ```dart
 import 'package:flutter/material.dart';
-import 'package:smooth_scroll_web/smooth_scroll_web.dart';
+import 'package:flutter_web_scroll/flutter_web_scroll.dart';
 
 class MyScrollablePage extends StatefulWidget {
   @override

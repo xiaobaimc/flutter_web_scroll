@@ -11,7 +11,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Smooth Scroll Web',
+      title: 'Flutter Web Scroll',
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark().copyWith(
         scaffoldBackgroundColor: Colors.black,
@@ -19,7 +19,6 @@ class MyApp extends StatelessWidget {
           primary: Colors.white,
           secondary: Color(0xFF333333),
           surface: Color(0xFF111111),
-          background: Colors.black,
         ),
         textTheme: const TextTheme(
           displayLarge: TextStyle(
