@@ -1,0 +1,312 @@
+import 'dart:math' as math;
+
+import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
+
+import 'scroll_config.dart';
+import 'scroll_types.dart';
+
+/// A high-performance smooth scrolling widget for Flutter web applications.
+///
+/// Provides multiple scroll types including Lenis-style scrolling, linear,
+/// elastic, and custom behaviors. Designed to replace native scrolling with
+/// smooth, customizable scroll experiences.
+///
+/// Example:
+/// ```dart
+/// SmoothScrollWeb(
+///   controller: _scrollController,
+///   config: SmoothScrollConfig.lenis(),
+///   child: ListView(...),
+/// )
+/// ```
+class SmoothScrollWeb extends StatefulWidget {
+  /// The child widget to wrap with smooth scrolling.
+  final Widget child;
+
+  /// The scroll controller to manage scroll position.
+  final ScrollController controller;
+
+  /// Configuration for scroll behavior.
+  /// Defaults to Lenis-style scrolling.
+  final SmoothScrollConfig config;
+
+  const SmoothScrollWeb({
+    super.key,
+    required this.child,
+    required this.controller,
+    this.config = const SmoothScrollConfig(
+      scrollType: SmoothScrollType.lenis,
+      scrollSpeed: 1.2,
+      damping: 0.08,
+    ),
+  });
+
+  @override
+  State<SmoothScrollWeb> createState() => _SmoothScrollWebState();
+}
+
+class _SmoothScrollWebState extends State<SmoothScrollWeb>
+    with SingleTickerProviderStateMixin {
+  late Ticker _ticker;
+  double _targetScroll = 0.0;
+  double _currentScroll = 0.0;
+  double _velocity = 0.0;
+  bool _isScrolling = false;
+  DateTime? _lastScrollTime;
+  double _lastScrollDelta = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _ticker = createTicker(_tick);
+
+    // Sync initial values
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (widget.controller.hasClients) {
+        _targetScroll = widget.controller.offset;
+        _currentScroll = widget.controller.offset;
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(SmoothScrollWeb oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      // Controller changed, resync
+      if (widget.controller.hasClients) {
+        _targetScroll = widget.controller.offset;
+        _currentScroll = widget.controller.offset;
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _ticker.stop();
+    _ticker.dispose();
+    super.dispose();
+  }
+
+  void _tick(Duration elapsed) {
+    if (!mounted || !widget.controller.hasClients) return;
+
+    final double distance = _targetScroll - _currentScroll;
+
+    // Stop if close enough
+    if (distance.abs() < widget.config.stopThreshold) {
+      _currentScroll = _targetScroll;
+      widget.controller.jumpTo(_currentScroll);
+      _ticker.stop();
+      _isScrolling = false;
+      _velocity = 0.0;
+      return;
+    }
+
+    // Apply scroll type-specific interpolation
+    switch (widget.config.scrollType) {
+      case SmoothScrollType.lenis:
+        _updateLenis(distance);
+        break;
+      case SmoothScrollType.linear:
+        _updateLinear(distance);
+        break;
+      case SmoothScrollType.elastic:
+        _updateElastic(distance);
+        break;
+      case SmoothScrollType.easeOut:
+        _updateEaseOut(distance);
+        break;
+      case SmoothScrollType.easeInOut:
+        _updateEaseInOut(distance);
+        break;
+      case SmoothScrollType.custom:
+        _updateCustom(distance);
+        break;
+    }
+
+    // Clamp to scroll bounds (unless elastic overscroll is enabled)
+    final double maxExtent = widget.controller.position.maxScrollExtent;
+    final double minExtent = widget.controller.position.minScrollExtent;
+
+    if (widget.config.scrollType == SmoothScrollType.elastic &&
+        widget.config.enableElasticOverscroll) {
+      // Allow temporary overscroll for elastic effect
+      // Will be pulled back by spring physics
+    } else {
+      if (_currentScroll < minExtent) _currentScroll = minExtent;
+      if (_currentScroll > maxExtent) _currentScroll = maxExtent;
+    }
+
+    widget.controller.jumpTo(_currentScroll);
+  }
+
+  void _updateLenis(double distance) {
+    // Exponential decay (Lenis-style)
+    _currentScroll += distance * widget.config.damping;
+  }
+
+  void _updateLinear(double distance) {
+    // Linear interpolation with constant speed
+    final double step = distance * widget.config.effectiveDamping;
+    if (step.abs() > distance.abs()) {
+      _currentScroll = _targetScroll;
+    } else {
+      _currentScroll += step;
+    }
+  }
+
+  void _updateElastic(double distance) {
+    // Spring physics simulation
+    final double springForce = distance * widget.config.springStiffness;
+    _velocity += springForce * 0.016; // ~60fps
+    _velocity *= (1.0 - widget.config.springDamping * 0.016);
+    _currentScroll += _velocity * 0.016;
+
+    // Apply damping to velocity
+    _velocity *= 0.95;
+  }
+
+  void _updateEaseOut(double distance) {
+    // Ease-out: fast start, slow end
+    final double t = distance.abs() / 100.0; // Normalize
+    final double easeFactor = 1.0 - math.pow(1.0 - math.min(t, 1.0), 3);
+    _currentScroll += distance * widget.config.damping * easeFactor;
+  }
+
+  void _updateEaseInOut(double distance) {
+    // Ease-in-out: slow start, fast middle, slow end
+    final double t = distance.abs() / 100.0; // Normalize
+    final double easeFactor = t < 0.5
+        ? 2 * t * t
+        : 1 - math.pow(-2 * t + 2, 2) / 2;
+    _currentScroll += distance * widget.config.damping * easeFactor;
+  }
+
+  void _updateCustom(double distance) {
+    // Custom damping
+    _currentScroll += distance * widget.config.damping;
+  }
+
+  void _onScroll(PointerScrollEvent event) {
+    if (!mounted || !widget.controller.hasClients) return;
+
+    final double maxExtent = widget.controller.position.maxScrollExtent;
+    final double minExtent = widget.controller.position.minScrollExtent;
+
+    // Initialize if needed (in case of manual native scrolling mixed in)
+    if (!_isScrolling &&
+        (widget.controller.offset - _currentScroll).abs() > 1.0) {
+      _currentScroll = widget.controller.offset;
+      _targetScroll = widget.controller.offset;
+    }
+
+    // Track velocity for momentum
+    final DateTime now = DateTime.now();
+    if (_lastScrollTime != null) {
+      final double dt = (now.difference(_lastScrollTime!).inMilliseconds) /
+          1000.0; // Convert to seconds
+      if (dt > 0 && dt < 0.1) {
+        // Calculate velocity (pixels per second)
+        _velocity = event.scrollDelta.dy / dt;
+      }
+    }
+    _lastScrollTime = now;
+    _lastScrollDelta = event.scrollDelta.dy;
+
+    // Accumulate the target scroll
+    _targetScroll += event.scrollDelta.dy * widget.config.scrollSpeed;
+
+    // Clamp target to prevent infinite "catch up" if user scrolls wildly past bounds
+    if (_targetScroll < minExtent) _targetScroll = minExtent;
+    if (_targetScroll > maxExtent) _targetScroll = maxExtent;
+
+    if (!_isScrolling) {
+      _isScrolling = true;
+      _ticker.start();
+    }
+  }
+
+  void _onVerticalDragUpdate(DragUpdateDetails details) {
+    if (!widget.controller.hasClients) return;
+
+    // Update both target and current to track finger exactly during drag
+    // (1:1 tracking for best UX)
+    _targetScroll -= details.delta.dy;
+    _currentScroll = _targetScroll;
+
+    // Clamp
+    final double maxExtent = widget.controller.position.maxScrollExtent;
+    final double minExtent = widget.controller.position.minScrollExtent;
+    if (_targetScroll < minExtent) _targetScroll = minExtent;
+    if (_targetScroll > maxExtent) _targetScroll = maxExtent;
+    if (_currentScroll < minExtent) _currentScroll = minExtent;
+    if (_currentScroll > maxExtent) _currentScroll = maxExtent;
+
+    widget.controller.jumpTo(_currentScroll);
+
+    // Stop interpolation while dragging
+    _isScrolling = false;
+    _ticker.stop();
+    _velocity = 0.0;
+  }
+
+  void _onVerticalDragEnd(DragEndDetails details) {
+    if (!widget.config.enableMomentum) {
+      _isScrolling = false;
+      _ticker.stop();
+      return;
+    }
+
+    // Project momentum based on velocity
+    double velocity = details.primaryVelocity ?? 0;
+
+    // If we have tracked velocity from scroll events, use that
+    if (_lastScrollTime != null) {
+      final DateTime now = DateTime.now();
+      final double dt = (now.difference(_lastScrollTime!).inMilliseconds) /
+          1000.0;
+      if (dt < 0.2 && _lastScrollDelta.abs() > 0) {
+        // Use recent scroll velocity
+        velocity = -_lastScrollDelta * 1000.0 / dt;
+      }
+    }
+
+    // Apply momentum factor
+    _targetScroll -= velocity * widget.config.momentumFactor;
+
+    // Clamp target
+    if (widget.controller.hasClients) {
+      final double maxExtent = widget.controller.position.maxScrollExtent;
+      final double minExtent = widget.controller.position.minScrollExtent;
+      if (_targetScroll < minExtent) _targetScroll = minExtent;
+      if (_targetScroll > maxExtent) _targetScroll = maxExtent;
+    }
+
+    // Start the interpolation to the new target
+    if (!_isScrolling) {
+      _isScrolling = true;
+      _ticker.start();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onVerticalDragUpdate: _onVerticalDragUpdate,
+      onVerticalDragEnd: _onVerticalDragEnd,
+      child: Listener(
+        onPointerSignal: (pointerSignal) {
+          if (pointerSignal is PointerScrollEvent) {
+            _onScroll(pointerSignal);
+          }
+        },
+        child: widget.child,
+      ),
+    );
+  }
+}
+
