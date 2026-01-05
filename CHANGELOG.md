@@ -1,7 +1,7 @@
 ## 1.0.0
 
 * Initial release of smooth_scroll_web package
-* Multiple scroll types: Lenis-style, Linear, Elastic, Ease-out, and Custom
+* Multiple scroll types: Lenis-style, Linear, Elastic, Custom, and Native
 * Configurable scroll speed, damping, and momentum
 * High-performance 60fps smooth scrolling
 * Drag-to-scroll with 1:1 finger tracking

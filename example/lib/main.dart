@@ -134,7 +134,7 @@ class _HeroSection extends StatelessWidget {
             width: 500,
             child: Text(
               "High-performance smooth scrolling for Flutter web. "
-              "Includes Lenis-style, ease-out, elastic, and custom physics "
+              "Includes Lenis-style, linear, elastic, custom, and native physics "
               "to make your web apps feel premium.",
               style: Theme.of(context).textTheme.bodyLarge,
             ),
@@ -499,7 +499,6 @@ class _ScrollDemoPageState extends State<ScrollDemoPage> {
           ],
         ),
       ),
-     
     );
   }
 
@@ -576,7 +575,6 @@ class _NativeScrollDemoPageState extends State<NativeScrollDemoPage> {
           ),
         ],
       ),
-      
     );
   }
 }

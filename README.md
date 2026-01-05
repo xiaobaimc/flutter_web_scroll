@@ -1,6 +1,6 @@
 # Smooth Scroll Web
 
-A high-performance, professional smooth scrolling package for Flutter web applications. Provides multiple scroll types including Lenis-style scrolling, linear interpolation, elastic spring physics, and custom behaviors.
+A high-performance, professional smooth scrolling package for Flutter web applications. Provides multiple scroll types including Lenis-style scrolling, linear interpolation, elastic spring physics, custom behaviors, and native browser scrolling.
 
 ## Preview
 
@@ -16,7 +16,6 @@ A high-performance, professional smooth scrolling package for Flutter web applic
 - **Lenis-style**: Premium exponential decay scrolling (default)
 - **Linear**: Constant speed interpolation
 - **Elastic**: Spring physics with bounce-back effect
-- **Ease-out**: Fast start, gradual deceleration
 - **Custom**: Fine-tune your own scroll behavior
 - **Native**: Standard HTML web browser scrolling behavior
 
@@ -249,7 +248,7 @@ class _MyScrollablePageState extends State<MyScrollablePage> {
 
 ## Best Practices
 
-1. **Use appropriate scroll types**: Lenis-style is great for most cases, elastic for playful UIs, linear for predictable behavior.
+1. **Use appropriate scroll types**: Lenis-style is great for most cases, elastic for playful UIs, linear for predictable behavior, custom for fine-tuned control, and native for standard browser feel.
 
 2. **Tune damping values**: Lower damping (0.05-0.08) = smoother/heavier feel. Higher damping (0.12-0.2) = snappier/more responsive.
 
