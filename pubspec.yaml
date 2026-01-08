@@ -5,35 +5,11 @@ homepage: https://github.com/zenithsyntax/flutter_web_scroll
 repository: https://github.com/zenithsyntax/flutter_web_scroll
 issue_tracker: https://github.com/zenithsyntax/flutter_web_scroll/issues
 topics:
-  - flutter_web_scroll
   - flutter
   - flutter-web
-  - web
-  - scroll
-  - scrolling
   - smooth-scroll
-  - smooth-scrolling
+  - scroll
   - lenis
-  - animation
-  - ui
-  - listview
-  - scrollview
-  - momentum-scroll
-  - momentum-scrolling
-  - scroll-behavior
-  - custom-scroll
-  - scroll-physics
-  - performance
-  - web-scrolling
-  - elastic-scroll
-  - linear-scroll
-  - scroll-controller
-  - scroll-animation
-  - web-ui
-  - flutter-package
-  - dart
-  - user-experience
-  - ux
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
