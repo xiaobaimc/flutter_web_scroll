@@ -1,3 +1,9 @@
+## 1.0.1
+
+* Enhanced package metadata and SEO for better discoverability
+* Added comprehensive topics list for improved search indexing
+* Improved package description with additional keywords
+
 ## 1.0.0
 
 * Initial release of flutter_web_scroll package

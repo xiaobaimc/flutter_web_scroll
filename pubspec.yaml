@@ -1,9 +1,39 @@
 name: flutter_web_scroll
-description: A high-performance smooth scrolling package for Flutter web with multiple scroll types including Lenis-style scrolling, linear, elastic, and custom behaviors.
-version: 1.0.0
+description: A high-performance smooth scrolling package for Flutter web applications. Provides Lenis-style momentum scrolling, linear interpolation, elastic spring physics, and custom scroll behaviors. Perfect for ListView, ScrollView, and custom scrollable widgets with 60fps animations and zero dependencies.
+version: 1.0.1
 homepage: https://github.com/zenithsyntax/flutter_web_scroll
 repository: https://github.com/zenithsyntax/flutter_web_scroll
 issue_tracker: https://github.com/zenithsyntax/flutter_web_scroll/issues
+topics:
+  - flutter_web_scroll
+  - flutter
+  - flutter-web
+  - web
+  - scroll
+  - scrolling
+  - smooth-scroll
+  - smooth-scrolling
+  - lenis
+  - animation
+  - ui
+  - listview
+  - scrollview
+  - momentum-scroll
+  - momentum-scrolling
+  - scroll-behavior
+  - custom-scroll
+  - scroll-physics
+  - performance
+  - web-scrolling
+  - elastic-scroll
+  - linear-scroll
+  - scroll-controller
+  - scroll-animation
+  - web-ui
+  - flutter-package
+  - dart
+  - user-experience
+  - ux
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
