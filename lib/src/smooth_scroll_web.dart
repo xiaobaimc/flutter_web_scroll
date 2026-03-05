@@ -94,13 +94,13 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
   static const double _frameTimeSeconds = 1.0 / 60.0;
 
   /// Velocity threshold for stopping animation (pixels per frame).
-  static const double _velocityThreshold = 0.00001;
+  static const double _velocityThreshold = 0.001;
 
   /// Distance threshold for stopping animation (pixels).
-  static const double _distanceThreshold = 0.00000001;
+  static const double _distanceThreshold = 0.001;
 
   /// Minimum pixel change required to update scroll position.
-  static const double _minUpdateDelta = 0.5;
+  static const double _minUpdateDelta = 0.1;
 
   /// Deceleration distance threshold for Lenis-style scrolling.
   static const double _lenisDecelerationThreshold = 5.0;
@@ -258,7 +258,7 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
 
     final bool allowOverscroll =
         widget.config.scrollType == SmoothScrollType.elastic &&
-            widget.config.enableElasticOverscroll;
+        widget.config.enableElasticOverscroll;
 
     if (!allowOverscroll) {
       if (_currentScroll < minExtent) _currentScroll = minExtent;
@@ -274,8 +274,10 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
     final double currentVelocity = (_currentScroll - previousScroll).abs();
     final double newDistance = (_targetScroll - _currentScroll).abs();
 
-    return currentVelocity < _velocityThreshold &&
-        newDistance < _distanceThreshold;
+    final bool isNearTarget = newDistance < _distanceThreshold;
+    final bool isLowVelocity = currentVelocity < _velocityThreshold;
+
+    return isNearTarget && isLowVelocity;
   }
 
   /// Stops the animation and settles to final position.
@@ -301,6 +303,10 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
 
     if (delta >= _minUpdateDelta) {
       widget.controller.jumpTo(roundedScroll);
+
+      if ((_targetScroll - _currentScroll).abs() < _minUpdateDelta) {
+        _stopAnimation();
+      }
     }
   }
 
@@ -314,7 +320,9 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
     final double absDistance = distance.abs();
     final double decelerationFactor = absDistance < _lenisDecelerationThreshold
         ? math.max(
-            _minDecelerationFactor, absDistance / _lenisDecelerationThreshold)
+            _minDecelerationFactor,
+            absDistance / _lenisDecelerationThreshold,
+          )
         : 1.0;
 
     _currentScroll += distance * widget.config.damping * decelerationFactor;
@@ -397,7 +405,8 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
         : 1.0;
 
     // Apply damping with ease factor and smooth factor for natural feel
-    final double step = distance *
+    final double step =
+        distance *
         widget.config.damping *
         (0.5 + easeFactor * 0.5) *
         smoothFactor;
@@ -415,7 +424,15 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
     _syncPositionIfNeeded();
     _updateScrollVelocity(event);
     _updateTargetScroll(event);
-    _startScrollingIfNeeded();
+
+    if (!_isScrolling) {
+      _isScrolling = true;
+      _ticker.start();
+    } else {
+      if (!_ticker.isTicking) {
+        _ticker.start();
+      }
+    }
   }
 
   /// Synchronizes position if there's a significant discrepancy.
@@ -440,8 +457,9 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
     final DateTime now = DateTime.now();
 
     if (_lastScrollTime != null) {
-      final int timeSinceLastScroll =
-          now.difference(_lastScrollTime!).inMilliseconds;
+      final int timeSinceLastScroll = now
+          .difference(_lastScrollTime!)
+          .inMilliseconds;
       final double dt = timeSinceLastScroll / 1000.0; // Convert to seconds
 
       if (dt > 0 && dt < _maxVelocityTimeDelta) {
@@ -553,8 +571,9 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
     // If we have tracked velocity from recent scroll events, use that
     if (_lastScrollTime != null) {
       final DateTime now = DateTime.now();
-      final int timeSinceLastScroll =
-          now.difference(_lastScrollTime!).inMilliseconds;
+      final int timeSinceLastScroll = now
+          .difference(_lastScrollTime!)
+          .inMilliseconds;
       final double dt = timeSinceLastScroll / 1000.0;
 
       if (dt < _maxScrollVelocityTimeDelta &&
