@@ -94,13 +94,13 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
   static const double _frameTimeSeconds = 1.0 / 60.0;
 
   /// Velocity threshold for stopping animation (pixels per frame).
-  static const double _velocityThreshold = 0.001;
+  static const double _velocityThreshold = 0.05;
 
   /// Distance threshold for stopping animation (pixels).
-  static const double _distanceThreshold = 0.001;
+  static const double _distanceThreshold = 0.05;
 
   /// Minimum pixel change required to update scroll position.
-  static const double _minUpdateDelta = 0.1;
+  static const double _minUpdateDelta = 0.5;
 
   /// Deceleration distance threshold for Lenis-style scrolling.
   static const double _lenisDecelerationThreshold = 5.0;
@@ -213,8 +213,17 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
     // Clamp to scroll bounds (unless elastic overscroll is enabled)
     _clampScrollPosition();
 
+    if (widget.controller.hasClients) {
+      final double controllerOffset = widget.controller.offset;
+      if ((controllerOffset - _currentScroll).abs() > 5.0) {
+        _currentScroll = controllerOffset;
+        _targetScroll = controllerOffset;
+      }
+    }
+
     // Check if animation should stop
     if (_shouldStopAnimation(previousScroll)) {
+      widget.controller.jumpTo(_targetScroll.roundToDouble());
       _stopAnimation();
       return;
     }
@@ -285,7 +294,11 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
     final double finalPosition = _targetScroll.roundToDouble();
     _currentScroll = finalPosition;
     _targetScroll = finalPosition;
-    widget.controller.jumpTo(finalPosition);
+
+    if (widget.controller.hasClients) {
+      widget.controller.jumpTo(finalPosition);
+    }
+
     _ticker.stop();
     _isScrolling = false;
     _velocity = 0.0;
@@ -303,10 +316,6 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
 
     if (delta >= _minUpdateDelta) {
       widget.controller.jumpTo(roundedScroll);
-
-      if ((_targetScroll - _currentScroll).abs() < _minUpdateDelta) {
-        _stopAnimation();
-      }
     }
   }
 
