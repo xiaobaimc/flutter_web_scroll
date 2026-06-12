@@ -197,33 +197,24 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
   void _tick(Duration elapsed) {
     if (!mounted || !widget.controller.hasClients) return;
 
-    final double dt = _lastTickTime != null
+    double dt = _lastTickTime != null
         ? (elapsed - _lastTickTime!).inMicroseconds / 1000000.0
         : _frameTimeSeconds;
-    _lastTickTime = elapsed;
     
-    // Safety check for massive frame drops (cap dt to 100ms)
-    final double safeDt = dt > 0.1 ? 0.1 : dt;
+    // Ensure dt is perfectly safe (between 1ms and 100ms)
+    if (dt < 0.001) dt = _frameTimeSeconds;
+    if (dt > 0.1) dt = 0.1;
+
+    _lastTickTime = elapsed;
 
     final double distance = _targetScroll - _currentScroll;
     final double previousScroll = _currentScroll;
 
     // Apply scroll type-specific interpolation
-    _applyScrollInterpolation(distance, safeDt);
+    _applyScrollInterpolation(distance, dt);
 
     // Clamp to scroll bounds (unless elastic overscroll is enabled)
     _clampScrollPosition();
-
-    if (widget.controller.hasClients) {
-      final double controllerOffset = widget.controller.offset;
-      // Detect if scroll position was changed externally (e.g., by native scrollbar drag)
-      if ((controllerOffset - previousScroll.roundToDouble()).abs() > 5.0) {
-        _currentScroll = controllerOffset;
-        _targetScroll = controllerOffset;
-        _stopAnimation();
-        return;
-      }
-    }
 
     // Check if animation should stop
     if (_shouldStopAnimation(previousScroll)) {
@@ -339,7 +330,7 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
           )
         : 1.0;
 
-    final double lerpFactor = 1.0 - math.pow(1.0 - widget.config.damping, dt * 60.0).toDouble();
+    final double lerpFactor = (widget.config.damping * 60.0 * dt).clamp(0.0, 1.0);
     _currentScroll += distance * lerpFactor * decelerationFactor;
   }
 
@@ -357,7 +348,7 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
           )
         : 1.0;
 
-    final double lerpFactor = 1.0 - math.pow(1.0 - widget.config.effectiveDamping, dt * 60.0).toDouble();
+    final double lerpFactor = (widget.config.effectiveDamping * 60.0 * dt).clamp(0.0, 1.0);
     final double step =
         distance * lerpFactor * decelerationFactor;
     if (step.abs() > distance.abs()) {
@@ -376,11 +367,12 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
   void _updateElastic(double distance, double frameTime) {
     final double springForce = distance * widget.config.springStiffness;
     _velocity += springForce * frameTime;
-    _velocity *= (1.0 - widget.config.springDamping * frameTime);
+    _velocity *= (1.0 - (widget.config.springDamping * frameTime).clamp(0.0, 1.0));
     _currentScroll += _velocity * frameTime;
 
     // Apply additional velocity damping for stability
-    _velocity *= math.pow(_springVelocityDamping, frameTime * 60.0).toDouble();
+    final double velDamping = 1.0 - (1.0 - _springVelocityDamping) * 60.0 * frameTime;
+    _velocity *= velDamping.clamp(0.0, 1.0);
   }
 
   /// Updates scroll position using custom damping.
@@ -397,7 +389,7 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
           )
         : 1.0;
 
-    final double lerpFactor = 1.0 - math.pow(1.0 - widget.config.damping, dt * 60.0).toDouble();
+    final double lerpFactor = (widget.config.damping * 60.0 * dt).clamp(0.0, 1.0);
     _currentScroll += distance * lerpFactor * decelerationFactor;
   }
 
@@ -422,7 +414,7 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
         : 1.0;
 
     // Apply damping with ease factor and smooth factor for natural feel
-    final double lerpFactor = 1.0 - math.pow(1.0 - widget.config.damping, dt * 60.0).toDouble();
+    final double lerpFactor = (widget.config.damping * 60.0 * dt).clamp(0.0, 1.0);
     final double step =
         distance *
         lerpFactor *
