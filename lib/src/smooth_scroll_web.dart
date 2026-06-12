@@ -216,9 +216,12 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
 
     if (widget.controller.hasClients) {
       final double controllerOffset = widget.controller.offset;
-      if ((controllerOffset - _currentScroll).abs() > 5.0) {
+      // Detect if scroll position was changed externally (e.g., by native scrollbar drag)
+      if ((controllerOffset - previousScroll.roundToDouble()).abs() > 5.0) {
         _currentScroll = controllerOffset;
         _targetScroll = controllerOffset;
+        _stopAnimation();
+        return;
       }
     }
 
