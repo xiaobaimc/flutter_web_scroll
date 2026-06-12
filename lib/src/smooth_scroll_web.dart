@@ -90,6 +90,9 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
   /// Last scroll delta for momentum calculation.
   double _lastScrollDelta = 0.0;
 
+  /// Last tick time for delta time calculation.
+  Duration? _lastTickTime;
+
   /// Frame time in seconds (approximately 16.67ms at 60fps).
   static const double _frameTimeSeconds = 1.0 / 60.0;
 
@@ -185,15 +188,6 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
     super.dispose();
   }
 
-  /// Gets the current frame time in seconds.
-  ///
-  /// Uses the actual elapsed time from the ticker for accurate physics
-  /// calculations, falling back to estimated 60fps frame time.
-  double _getFrameTime(Duration elapsed) {
-    final double seconds = elapsed.inMicroseconds / 1000000.0;
-    return seconds > 0 ? seconds : _frameTimeSeconds;
-  }
-
   /// Main animation tick callback.
   ///
   /// Updates scroll position based on the configured scroll type and
@@ -203,12 +197,19 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
   void _tick(Duration elapsed) {
     if (!mounted || !widget.controller.hasClients) return;
 
+    final double dt = _lastTickTime != null
+        ? (elapsed - _lastTickTime!).inMicroseconds / 1000000.0
+        : _frameTimeSeconds;
+    _lastTickTime = elapsed;
+    
+    // Safety check for massive frame drops (cap dt to 100ms)
+    final double safeDt = dt > 0.1 ? 0.1 : dt;
+
     final double distance = _targetScroll - _currentScroll;
     final double previousScroll = _currentScroll;
-    final double frameTime = _getFrameTime(elapsed);
 
     // Apply scroll type-specific interpolation
-    _applyScrollInterpolation(distance, frameTime);
+    _applyScrollInterpolation(distance, safeDt);
 
     // Clamp to scroll bounds (unless elastic overscroll is enabled)
     _clampScrollPosition();
@@ -239,19 +240,19 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
   void _applyScrollInterpolation(double distance, double frameTime) {
     switch (widget.config.scrollType) {
       case SmoothScrollType.lenis:
-        _updateLenis(distance);
+        _updateLenis(distance, frameTime);
         break;
       case SmoothScrollType.linear:
-        _updateLinear(distance);
+        _updateLinear(distance, frameTime);
         break;
       case SmoothScrollType.elastic:
         _updateElastic(distance, frameTime);
         break;
       case SmoothScrollType.custom:
-        _updateCustom(distance);
+        _updateCustom(distance, frameTime);
         break;
       case SmoothScrollType.native:
-        _updateNative(distance);
+        _updateNative(distance, frameTime);
         break;
     }
   }
@@ -300,6 +301,7 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
     }
 
     _ticker.stop();
+    _lastTickTime = null;
     _isScrolling = false;
     _velocity = 0.0;
   }
@@ -325,7 +327,7 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
   /// Applies gentle deceleration near the target to prevent micro-stops.
   ///
   /// [distance] is the distance to the target position.
-  void _updateLenis(double distance) {
+  void _updateLenis(double distance, double dt) {
     final double absDistance = distance.abs();
     final double decelerationFactor = absDistance < _lenisDecelerationThreshold
         ? math.max(
@@ -334,7 +336,8 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
           )
         : 1.0;
 
-    _currentScroll += distance * widget.config.damping * decelerationFactor;
+    final double lerpFactor = 1.0 - math.pow(1.0 - widget.config.damping, dt * 60.0).toDouble();
+    _currentScroll += distance * lerpFactor * decelerationFactor;
   }
 
   /// Updates scroll position using linear interpolation.
@@ -342,7 +345,7 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
   /// Provides constant-speed interpolation with smooth deceleration near target.
   ///
   /// [distance] is the distance to the target position.
-  void _updateLinear(double distance) {
+  void _updateLinear(double distance, double dt) {
     final double absDistance = distance.abs();
     final double decelerationFactor = absDistance < _linearDecelerationThreshold
         ? math.max(
@@ -351,8 +354,9 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
           )
         : 1.0;
 
+    final double lerpFactor = 1.0 - math.pow(1.0 - widget.config.effectiveDamping, dt * 60.0).toDouble();
     final double step =
-        distance * widget.config.effectiveDamping * decelerationFactor;
+        distance * lerpFactor * decelerationFactor;
     if (step.abs() > distance.abs()) {
       _currentScroll = _targetScroll;
     } else {
@@ -373,7 +377,7 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
     _currentScroll += _velocity * frameTime;
 
     // Apply additional velocity damping for stability
-    _velocity *= _springVelocityDamping;
+    _velocity *= math.pow(_springVelocityDamping, frameTime * 60.0).toDouble();
   }
 
   /// Updates scroll position using custom damping.
@@ -381,7 +385,7 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
   /// Applies user-defined damping with smooth deceleration near target.
   ///
   /// [distance] is the distance to the target position.
-  void _updateCustom(double distance) {
+  void _updateCustom(double distance, double dt) {
     final double absDistance = distance.abs();
     final double decelerationFactor = absDistance < _customDecelerationThreshold
         ? math.max(
@@ -390,7 +394,8 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
           )
         : 1.0;
 
-    _currentScroll += distance * widget.config.damping * decelerationFactor;
+    final double lerpFactor = 1.0 - math.pow(1.0 - widget.config.damping, dt * 60.0).toDouble();
+    _currentScroll += distance * lerpFactor * decelerationFactor;
   }
 
   /// Updates scroll position using native browser-style scrolling.
@@ -398,12 +403,12 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
   /// Mimics standard browser scrolling with ease-out deceleration curve.
   ///
   /// [distance] is the distance to the target position.
-  void _updateNative(double distance) {
+  void _updateNative(double distance, double dt) {
     final double absDistance = distance.abs();
 
     // Smooth ease-out curve for natural deceleration
     final double t = math.min(absDistance / _nativeEaseDistance, 1.0);
-    final double easeFactor = 1.0 - math.pow(1.0 - t, _nativeEasePower);
+    final double easeFactor = 1.0 - math.pow(1.0 - t, _nativeEasePower).toDouble();
 
     // Apply gentle deceleration when very close to target
     final double smoothFactor = absDistance < _nativeDecelerationThreshold
@@ -414,9 +419,10 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
         : 1.0;
 
     // Apply damping with ease factor and smooth factor for natural feel
+    final double lerpFactor = 1.0 - math.pow(1.0 - widget.config.damping, dt * 60.0).toDouble();
     final double step =
         distance *
-        widget.config.damping *
+        lerpFactor *
         (0.5 + easeFactor * 0.5) *
         smoothFactor;
     _currentScroll += step;
@@ -436,9 +442,11 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
 
     if (!_isScrolling) {
       _isScrolling = true;
+      _lastTickTime = null;
       _ticker.start();
     } else {
       if (!_ticker.isTicking) {
+        _lastTickTime = null;
         _ticker.start();
       }
     }
@@ -504,6 +512,7 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
   void _startScrollingIfNeeded() {
     if (!_isScrolling) {
       _isScrolling = true;
+      _lastTickTime = null;
       _ticker.start();
     }
   }
@@ -548,6 +557,7 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
   void _stopDragInterpolation() {
     _isScrolling = false;
     _ticker.stop();
+    _lastTickTime = null;
     _velocity = 0.0;
   }
 
@@ -560,6 +570,7 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
     if (!widget.config.enableMomentum) {
       _isScrolling = false;
       _ticker.stop();
+      _lastTickTime = null;
       return;
     }
 
