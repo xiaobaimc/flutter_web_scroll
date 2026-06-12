@@ -97,13 +97,13 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
   static const double _frameTimeSeconds = 1.0 / 60.0;
 
   /// Velocity threshold for stopping animation (pixels per frame).
-  static const double _velocityThreshold = 0.05;
+  static const double _velocityThreshold = 0.5;
 
   /// Distance threshold for stopping animation (pixels).
-  static const double _distanceThreshold = 0.05;
+  static const double _distanceThreshold = 0.5;
 
   /// Minimum pixel change required to update scroll position.
-  static const double _minUpdateDelta = 0.5;
+  static const double _minUpdateDelta = 0.1;
 
   /// Deceleration distance threshold for Lenis-style scrolling.
   static const double _lenisDecelerationThreshold = 5.0;
@@ -218,7 +218,7 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
 
     // Check if animation should stop
     if (_shouldStopAnimation(previousScroll)) {
-      widget.controller.jumpTo(_targetScroll.roundToDouble());
+      widget.controller.jumpTo(_targetScroll);
       _stopAnimation();
       return;
     }
@@ -286,12 +286,10 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
 
   /// Stops the animation and settles to final position.
   void _stopAnimation() {
-    final double finalPosition = _targetScroll.roundToDouble();
-    _currentScroll = finalPosition;
-    _targetScroll = finalPosition;
+    _currentScroll = _targetScroll;
 
     if (widget.controller.hasClients) {
-      widget.controller.jumpTo(finalPosition);
+      widget.controller.jumpTo(_targetScroll);
     }
 
     _ticker.stop();
@@ -306,12 +304,11 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
   void _updateControllerIfNeeded() {
     if (!widget.controller.hasClients) return;
 
-    final double roundedScroll = _currentScroll.roundToDouble();
     final double currentOffset = widget.controller.offset;
-    final double delta = (roundedScroll - currentOffset).abs();
+    final double delta = (_currentScroll - currentOffset).abs();
 
     if (delta >= _minUpdateDelta) {
-      widget.controller.jumpTo(roundedScroll);
+      widget.controller.jumpTo(_currentScroll);
     }
   }
 
@@ -528,8 +525,8 @@ class _SmoothScrollWebState extends State<SmoothScrollWeb>
     // Clamp to valid scroll bounds
     _clampDragPosition();
 
-    // Round to avoid sub-pixel jitter during drag
-    widget.controller.jumpTo(_currentScroll.roundToDouble());
+    // Directly jump to sub-pixel exact drag location
+    widget.controller.jumpTo(_currentScroll);
 
     // Stop interpolation while dragging
     _stopDragInterpolation();
